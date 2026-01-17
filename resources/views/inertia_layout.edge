@@ -16,7 +16,7 @@
 
     
     @viteReactRefresh()
-    @vite(['inertia/app/app.tsx'])
+    @vite(['inertia/app/app.tsx', `inertia/pages/${page.component}.tsx`])
     @inertiaHead()
     @stack('dumper')
   </head>
