@@ -1,77 +1,151 @@
-# AdonisJS Inertia Starter Kit
+# React Starter Kit
 
-This repo contains an AdonisJS application tailored for building an Inertia powered application using your favorite frontend framework. ( React, Vue, Solid.js, Svelte )
+Un proyecto personal basado en [AdonisJS Inertia Starter Kit](https://github.com/adonisjs/react-starter-kit), adaptado para mis necesidades específicas.
 
-## What's included
+## 🚀 Tecnologías
 
-- TypeScript setup with commands to run developments server using `ts-node + swc` and create production build.
-- ESLint and Prettier setup extending the [AdonisJS tooling config](https://github.com/adonisjs/tooling-config) presets.
-- Ace command line framework.
-- Everything else you get with the core of AdonisJS.
+### Backend
+- **AdonisJS 7.x** - Framework Node.js con TypeScript
+- **Lucid ORM** - ORM para base de datos
+- **VineJS** - Validación de datos
+- **Inertia.js** - Para aplicaciones SPA server-driven
+- **PostgreSQL** - Base de datos
+- **Redis** - Para sesiones y cache
 
-On top of the framework core and dev-tooling, the following features are enabled by the inertia starter kit.
+### Frontend
+- **React 19** - Biblioteca de UI
+- **TypeScript** - Tipado estático
+- **Vite** - Build tool y dev server
+- **Inertia.js React** - Integración React con Inertia
 
-- Lucid ORM ( Installed, but not configured )
-- Auth module ( Installed, but not configured )
-- CSRF protection
-- Edge template engine
-- VineJS for validations
-- Static files server
-- Vite for bundling and serving frontend assets
-- Inertia.js for building server-driven single-page apps
-- Your favorite frontend framework ( React, Vue, Solid.js, Svelte )
+### Herramientas de Desarrollo
+- **ESLint** - Linter
+- **Prettier** - Formateador de código
+- **Docker** - Containerización (compose.yml incluido)
 
-## Usage
+## 📋 Características
 
-You can create a new app using the `inertia` boilerplate by executing the following command. The command will perform the following steps.
+- ✅ Autenticación con sesiones
+- ✅ Sistema de usuarios
+- ✅ Validación de formularios
+- ✅ Protección CSRF
+- ✅ Server-side rendering (SSR)
+- ✅ Hot Module Replacement (HMR)
+- ✅ TypeScript en backend y frontend
+- ✅ Estructura de proyecto escalable
 
-- Clone the repo
-- Install dependencies
-- Copy `.env.example` to `.env`
-- Set app key using `node ace generate:key` command.
-- Configure `@adonisjs/lucid` package.
-- Configure `@adonisjs/auth` package.
-- Configure `@adonisjs/inertia` package.
+## 🛠️ Instalación
 
-```sh
-npm init adonisjs -- -K=inertia
+1. Clonar el repositorio:
+```bash
+git clone https://github.com/VixoPlank/react-starter-kit.git
+cd react-starter-kit
 ```
 
-### Configuring Lucid database dialect
-
-```sh
-npm init adonisjs -- -K=inertia --db=postgres
+2. Instalar dependencias:
+```bash
+npm install
+# o
+pnpm install
 ```
 
-Available options for the `--db` flag.
-
-- sqlite
-- postgres
-- mysql
-- mssql
-
-### Configuring Auth package guard
-
-```sh
-npm init adonisjs -- -K=inertia --auth-guard=access_tokens
+3. Configurar variables de entorno:
+```bash
+cp .env.example .env
 ```
 
-Available options for the `--auth-guard` flag.
-
-- session
-- basic_auth
-- access_tokens
-
-### Configuring Inertia
-
-You can pass the `--adapter` flag to configure the frontend adapter. Available options are `react`, `vue`, `solid`, and `svelte`.
-
-```sh
-npm init adonisjs -- -K=inertia --adapter=react
+4. Generar la clave de la aplicación:
+```bash
+node ace generate:key
 ```
 
-You can also pass the `--ssr` or `--no-ssr` flag to enable or disable server-side rendering.
-
-```sh
-npm init adonisjs -- -K=inertia --ssr
+5. Configurar la base de datos en `.env`:
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=tu_usuario
+DB_PASSWORD=tu_contraseña
+DB_DATABASE=nombre_base_datos
 ```
+
+6. Ejecutar migraciones:
+```bash
+node ace migration:run
+```
+
+## 🚦 Uso
+
+### Desarrollo
+```bash
+npm run dev
+```
+
+Esto iniciará:
+- Servidor AdonisJS en `http://localhost:3333`
+- Vite dev server con HMR
+
+### Producción
+```bash
+npm run build
+npm start
+```
+
+### Otros comandos
+```bash
+# Ejecutar tests
+npm test
+
+# Linter
+npm run lint
+
+# Formatear código
+npm run format
+
+# Type checking
+npm run typecheck
+```
+
+## 📁 Estructura del Proyecto
+
+```
+react-starter-kit/
+├── app/                    # Lógica de la aplicación
+│   ├── controllers/        # Controladores
+│   ├── models/             # Modelos de base de datos
+│   ├── middleware/         # Middleware personalizado
+│   ├── validators/         # Validadores VineJS
+│   └── transformers/       # Transformadores de datos
+├── config/                 # Archivos de configuración
+├── database/               # Migraciones y schema
+├── inertia/                # Frontend React
+│   ├── app/               # Componentes principales
+│   ├── pages/             # Páginas Inertia
+│   ├── layouts/           # Layouts
+│   └── css/               # Estilos
+├── resources/              # Recursos estáticos
+└── start/                  # Archivos de inicio
+```
+
+## 🔐 Autenticación
+
+El proyecto incluye:
+- Login y registro de usuarios
+- Middleware de autenticación
+- Protección de rutas
+- Gestión de sesiones
+
+## 📝 TODO
+
+Ver [docs/TODO.md](./docs/TODO.md) para la lista de tareas pendientes.
+
+## 📄 Licencia
+
+Este es un proyecto personal. Basado en el [AdonisJS Inertia Starter Kit](https://github.com/adonisjs/react-starter-kit) (licencia MIT).
+
+## 🤝 Contribuciones
+
+Este es un proyecto personal, pero las sugerencias son bienvenidas.
+
+---
+
+Hecho con ❤️ usando AdonisJS y React
