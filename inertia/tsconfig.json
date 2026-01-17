@@ -8,7 +8,7 @@
     "resolveJsonModule": true,
     "paths": {
       "~/*": ["./*"],
-      "@/": ["./*"],
+      "@/*": ["./*"],
       "~/generated/*": ["../.adonisjs/client/*"],
       "~registry": ["../.adonisjs/client/registry.ts"],
       "@translations/*": ["../resources/lang/*"]
