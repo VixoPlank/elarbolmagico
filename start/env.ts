@@ -74,4 +74,12 @@ export default await Env.create(new URL('../', import.meta.url), {
   REDIS_PORT: Env.schema.number.optional(),
   REDIS_PASSWORD:
     process.env.NODE_ENV === 'production' ? Env.schema.string() : Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring the mail package
+  |----------------------------------------------------------
+  */
+  MAIL_MAILER: Env.schema.enum(['smtp'] as const),
+  MAIL_FROM_NAME: Env.schema.string()
 })
