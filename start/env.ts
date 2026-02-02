@@ -24,7 +24,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   | Variables for configuring session package
   |----------------------------------------------------------
   */
-  SESSION_DRIVER: Env.schema.enum(['cookie', 'memory'] as const),
+  SESSION_DRIVER: Env.schema.enum(['cookie', 'memory', 'redis'] as const),
 
   /*
   |----------------------------------------------------------
@@ -53,15 +53,15 @@ export default await Env.create(new URL('../', import.meta.url), {
   | Variables for configuring the drive package
   |----------------------------------------------------------
   */
-  DRIVE_DISK: Env.schema.enum(['s3'] as const),
-  AWS_ACCESS_KEY_ID: Env.schema.string.optional(),
-  AWS_SECRET_ACCESS_KEY: Env.schema.string.optional(),
-  AWS_REGION: Env.schema.string.optional(),
-  S3_BUCKET: Env.schema.string.optional(),
-  R2_KEY: Env.schema.string.optional(),
-  R2_SECRET: Env.schema.string.optional(),
-  R2_BUCKET: Env.schema.string.optional(),
-  R2_ENDPOINT: Env.schema.string.optional(),
+  // DRIVE_DISK: Env.schema.enum(['s3'] as const),
+  // AWS_ACCESS_KEY_ID: Env.schema.string.optional(),
+  // AWS_SECRET_ACCESS_KEY: Env.schema.string.optional(),
+  // AWS_REGION: Env.schema.string.optional(),
+  // S3_BUCKET: Env.schema.string.optional(),
+  // R2_KEY: Env.schema.string.optional(),
+  // R2_SECRET: Env.schema.string.optional(),
+  // R2_BUCKET: Env.schema.string.optional(),
+  // R2_ENDPOINT: Env.schema.string.optional(),
 
   /*
   |----------------------------------------------------------
@@ -72,8 +72,9 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   REDIS_HOST: Env.schema.string.optional({ format: 'host' }),
   REDIS_PORT: Env.schema.number.optional(),
-  REDIS_PASSWORD:
-    process.env.NODE_ENV === 'production' ? Env.schema.string() : Env.schema.string.optional(),
+  REDIS_PASSWORD: Env.schema.string.optional(),
+  // REDIS_PASSWORD:
+  //   process.env.NODE_ENV === 'production' ? Env.schema.string() : Env.schema.string.optional(),
 
   /*
   |----------------------------------------------------------
@@ -81,5 +82,5 @@ export default await Env.create(new URL('../', import.meta.url), {
   |----------------------------------------------------------
   */
   MAIL_MAILER: Env.schema.enum(['smtp'] as const),
-  MAIL_FROM_NAME: Env.schema.string()
+  MAIL_FROM_NAME: Env.schema.string(),
 })
