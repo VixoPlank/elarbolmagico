@@ -28,7 +28,9 @@ FROM base AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules /app/node_modules
 ADD . .
-RUN sed -i 's/"baseUrl": "."/"baseUrl": "\/app"/' tsconfig.json
+RUN sed -i 's|"rootDir": "\./"|"rootDir": "/app"|' tsconfig.json
+RUN sed -i 's|"baseUrl": "\."|"baseUrl": "/app"|' tsconfig.json
+RUN sed -i 's|"baseUrl": "\."|"baseUrl": "/app/inertia"|' inertia/tsconfig.json
 RUN node ace build
 
 # Production stage
