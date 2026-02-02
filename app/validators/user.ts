@@ -16,3 +16,9 @@ export const signupValidator = vine.create({
     confirmationField: 'passwordConfirmation',
   }),
 })
+
+export const updateProfileValidator = vine.create({
+  firstName: vine.string().minLength(3).maxLength(100),
+  lastName: vine.string().minLength(3).maxLength(100),
+  email: email(),
+})

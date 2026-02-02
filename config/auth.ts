@@ -12,7 +12,7 @@ const authConfig = defineConfig({
       }),
     }),
   },
-})
+}) as any
 
 export default authConfig
 

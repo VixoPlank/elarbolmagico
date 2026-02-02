@@ -7,6 +7,9 @@ import { createInertiaApp } from '@inertiajs/react'
 import { resolvePageComponent } from '@adonisjs/inertia/helpers'
 import { TuyauProvider } from '@adonisjs/inertia/react'
 import { client } from '~/client'
+import { initializeTheme } from '@/hooks/use-appearance'
+
+initializeTheme()
 
 const appName = import.meta.env.VITE_APP_NAME || 'AdonisJS Inertia Starter Kit'
 

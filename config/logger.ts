@@ -19,7 +19,7 @@ const loggerConfig = defineConfig({
       },
     },
   },
-})
+}) as any
 
 export default loggerConfig
 

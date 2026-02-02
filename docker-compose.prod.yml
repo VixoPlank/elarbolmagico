@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  app:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: '.env'
+    environment:
+      - NODE_ENV=production
+    networks:
+      - internal
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://localhost:3333/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  worker:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: '.env'
+    environment:
+      - NODE_ENV=${NODE_ENV}
+    command: 'node ace queue:work'
+    networks:
+      - internal
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres_volume:/var/lib/postgresql/data
+      # Volumen para scripts de migración
+      - ./scripts/db:/docker-entrypoint-initdb.d
+    environment:
+      PGPASSWORD: '${DB_PASSWORD}'
+      POSTGRES_DB: '${DB_DATABASE}'
+      POSTGRES_USER: '${DB_USER}'
+      POSTGRES_PASSWORD: '${DB_PASSWORD}'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER} -d ${DB_DATABASE}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_volume:/data
+    environment:
+      REDIS_PASSWORD: '${REDIS_PASSWORD}'
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  minio:
+    image: 'minio/minio:latest'
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: '${MINIO_ROOT_USER}'
+      MINIO_ROOT_PASSWORD: '${MINIO_ROOT_PASSWORD}'
+    volumes:
+      - minio_volume:/data
+    command: 'minio server /data --console-address ":9001" --address ":9000"'
+    healthcheck:
+      test:
+        - CMD
+        - mc
+        - ready
+        - local
+      retries: 3
+      timeout: 5s
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_volume:
+    driver: local
+  redis_volume:
+    driver: local
+  minio_volume:
+    driver: local

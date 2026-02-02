@@ -9,6 +9,13 @@ tmp
 .env.production.local
 .env.development.local
 
+# Database dumps (contienen datos sensibles)
+database/dump/*.dump
+database/dump/*.sql
+database/dump/backup_*.sql
+*.dump
+*.sql
+
 # Frontend assets compiled code
 public/assets
 

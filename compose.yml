@@ -1,14 +1,12 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
     image: postgres:latest
     restart: unless-stopped
     volumes:
-      - postgres_volume:/var/lib/postgresql/data
+      - postgres_volume:/var/lib/postgresql
     environment:
-      POSTGRES_DB: '${DB_DATABASE:-facturador}'
+      POSTGRES_DB: '${DB_DATABASE:-elarbolmagico}'
       POSTGRES_USER: '${DB_USER:-postgres}'
       POSTGRES_PASSWORD: '${DB_PASSWORD:-postgres}'
     ports:

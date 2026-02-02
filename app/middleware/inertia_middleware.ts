@@ -23,6 +23,11 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
       .filter((code) => code !== 'E_VALIDATION_ERROR')
       .map((code) => errorsBag[code])[0]
 
+    const toastData = session?.flashMessages.get('toast')
+    const toast = toastData
+      ? JSON.parse(toastData)
+      : { message: null, id: null, status: null, action: null }
+
     /**
      * Data shared with all Inertia pages. Make sure you are using
      * transformers for rich data-types like Models.
@@ -33,6 +38,8 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
         error: error,
       }),
       user: ctx.inertia.always(auth?.user ? UserTransformer.transform(auth.user) : undefined),
+      toast: ctx.inertia.always(toast),
+      latestSale: session?.flashMessages.get('latestSale'),
     }
   }
 
