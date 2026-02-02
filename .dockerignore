@@ -1,14 +1,11 @@
 # Dependencies
 node_modules
-# pnpm-lock.yaml is needed for Docker build
-package-lock.json
 
-# Build output
+# Build output (will be created during build)
 build
 dist
-.output
 
-# Development
+# Development files
 .env
 .env.local
 .env.*.local
@@ -16,9 +13,6 @@ dist
 # IDE
 .vscode
 .idea
-*.swp
-*.swo
-*~
 
 # OS
 .DS_Store
@@ -26,30 +20,24 @@ Thumbs.db
 
 # Git
 .git
-.gitignore
-.gitattributes
 
 # Testing
 coverage
-.nyc_output
 *.log
 
 # Misc
 tmp
 temp
-*.tmp
-.cache
 
-# Documentation
+# Documentation (not needed in image)
 README.md
 docs
-*.md
 
-# Scripts de desarrollo
-scripts/migrate-supabase-to-dokploy.sh
-database/dump
+# Database dumps (sensitive data)
+database/dump/*.dump
+database/dump/*.sql
 
-# Docker
+# Docker files (not needed in image)
 Dockerfile
 .dockerignore
 docker-compose*.yml
