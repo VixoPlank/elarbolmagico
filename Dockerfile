@@ -1,4 +1,6 @@
-FROM node:24 AS base
+ARG NODE_IMAGE=node:22
+
+FROM ${NODE_IMAGE} AS base
 
 # Install additional system dependencies
 RUN apt-get update && apt-get install -y \
@@ -28,9 +30,6 @@ FROM base AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules /app/node_modules
 ADD . .
-RUN echo '{"extends":"@adonisjs/tsconfig/tsconfig.app.json","compilerOptions":{"rootDir":"/app","jsx":"react","outDir":"./build","baseUrl":"/app","paths":{"@/*":["./inertia/*"]}},"references":[{"path":"./tsconfig.inertia.json"}]}' > tsconfig.json \
-    && echo '{"extends":"@adonisjs/tsconfig/tsconfig.client.json","compilerOptions":{"baseUrl":"/app/inertia","module":"ESNext","jsx":"react-jsx","composite":true,"resolveJsonModule":true,"paths":{"~/*":["./*"],"@/*":["./*"],"~/generated/*":["../.adonisjs/client/*"],"~registry":["../.adonisjs/client/registry.ts"],"@translations/*":["../resources/lang/*"]}},"include":["./**/*.ts","../**/*.ts","./**/*.tsx","../.adonisjs/**/*.ts","../.adonisjs/client/**/*.ts","../.adonisjs/server/**/*.ts","../resources/lang/**/*.json"]}' > inertia/tsconfig.json \
-    && echo '{"extends":"./inertia/tsconfig.json","compilerOptions":{"rootDir":"/app/inertia","composite":true},"include":["./inertia/**/*.ts","./inertia/**/*.tsx"]}' > tsconfig.inertia.json
 RUN node ace build
 
 # Production stage
