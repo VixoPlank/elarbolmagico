@@ -28,6 +28,7 @@ FROM base AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules /app/node_modules
 ADD . .
+RUN sed -i 's/"baseUrl": "."/"baseUrl": "\/app"/' tsconfig.json
 RUN node ace build
 
 # Production stage
