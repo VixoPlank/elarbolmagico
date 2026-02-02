@@ -28,9 +28,7 @@ FROM base AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules /app/node_modules
 ADD . .
-RUN sed -i 's|"rootDir": "\./"|"rootDir": "/app"|' tsconfig.json
-RUN sed -i 's|"baseUrl": "\."|"baseUrl": "/app"|' tsconfig.json
-RUN sed -i 's|"baseUrl": "\."|"baseUrl": "/app/inertia"|' inertia/tsconfig.json
+RUN node -e "const fs=require('fs'); const files=[{p:'tsconfig.json',b:'/app',r:'/app'},{p:'inertia/tsconfig.json',b:'/app/inertia'},{p:'tsconfig.inertia.json',r:'/app/inertia'}]; files.forEach(f=>{ if(fs.existsSync(f.p)){ let c=fs.readFileSync(f.p,'utf8'); c=c.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm,'$1'); try{ let j=JSON.parse(c); if(!j.compilerOptions)j.compilerOptions={}; if(f.b)j.compilerOptions.baseUrl=f.b; if(f.r)j.compilerOptions.rootDir=f.r; fs.writeFileSync(f.p,JSON.stringify(j,null,2)); console.log('Updated '+f.p); }catch(e){console.error('Err '+f.p,e)} } })"
 RUN node ace build
 
 # Production stage
