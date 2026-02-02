@@ -28,7 +28,9 @@ FROM base AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules /app/node_modules
 ADD . .
-RUN node -e "const fs=require('fs'); const files=[{p:'tsconfig.json',b:'/app',r:'/app'},{p:'inertia/tsconfig.json',b:'/app/inertia'},{p:'tsconfig.inertia.json',r:'/app/inertia'}]; files.forEach(f=>{ if(fs.existsSync(f.p)){ let c=fs.readFileSync(f.p,'utf8'); c=c.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm,'$1'); try{ let j=JSON.parse(c); if(!j.compilerOptions)j.compilerOptions={}; if(f.b)j.compilerOptions.baseUrl=f.b; if(f.r)j.compilerOptions.rootDir=f.r; fs.writeFileSync(f.p,JSON.stringify(j,null,2)); console.log('Updated '+f.p); }catch(e){console.error('Err '+f.p,e)} } })"
+RUN echo '{"extends":"@adonisjs/tsconfig/tsconfig.app.json","compilerOptions":{"rootDir":"/app","jsx":"react","outDir":"./build","baseUrl":"/app","paths":{"@/*":["./inertia/*"]}},"references":[{"path":"./tsconfig.inertia.json"}]}' > tsconfig.json \
+    && echo '{"extends":"@adonisjs/tsconfig/tsconfig.client.json","compilerOptions":{"baseUrl":"/app/inertia","module":"ESNext","jsx":"react-jsx","composite":true,"resolveJsonModule":true,"paths":{"~/*":["./*"],"@/*":["./*"],"~/generated/*":["../.adonisjs/client/*"],"~registry":["../.adonisjs/client/registry.ts"],"@translations/*":["../resources/lang/*"]}},"include":["./**/*.ts","../**/*.ts","./**/*.tsx","../.adonisjs/**/*.ts","../.adonisjs/client/**/*.ts","../.adonisjs/server/**/*.ts","../resources/lang/**/*.json"]}' > inertia/tsconfig.json \
+    && echo '{"extends":"./inertia/tsconfig.json","compilerOptions":{"rootDir":"/app/inertia","composite":true},"include":["./inertia/**/*.ts","./inertia/**/*.tsx"]}' > tsconfig.inertia.json
 RUN node ace build
 
 # Production stage
