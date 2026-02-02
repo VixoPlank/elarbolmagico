@@ -4,12 +4,7 @@
     "rootDir": "./",
     "jsx": "react",
     "outDir": "./build",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": [
-        "./inertia/*"
-      ]
-    }
+
   },
   "references": [
     {
