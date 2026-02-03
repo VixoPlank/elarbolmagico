@@ -127,3 +127,7 @@ router
       .prefix('settings')
   })
   .use(middleware.auth())
+
+router.any('*', async ({ response }) => {
+  return response.abort('Page not found', 404)
+})

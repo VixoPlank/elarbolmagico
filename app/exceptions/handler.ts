@@ -21,8 +21,14 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * to return the HTML contents to send as a response.
    */
   protected statusPages: Record<StatusPageRange, StatusPageRenderer> = {
-    '404': (_, { inertia }) => inertia.render('errors/not_found', {}),
-    '500..599': (_, { inertia }) => inertia.render('errors/server_error', {}),
+    '404': (error, { inertia }) => {
+      if (inertia) return inertia.render('errors/not_found', { error })
+      return '404 Not Found'
+    },
+    '500..599': (error, { inertia }) => {
+      if (inertia) return inertia.render('errors/server_error', { error })
+      return '500 Server Error'
+    },
   }
 
   /**
@@ -30,6 +36,40 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * response to the client
    */
   async handle(error: unknown, ctx: HttpContext) {
+    // Check if this is an API request
+    const isApiRequest = ctx.request.url().startsWith('/api')
+
+    if (isApiRequest) {
+      // Handle API errors with JSON responses
+      const err = error as any
+
+      if (err.code === 'E_VALIDATION_FAILURE') {
+        const errors: Record<string, string[]> = {}
+        if (err.messages) {
+          for (const [field, messages] of Object.entries(err.messages)) {
+            errors[field] = Array.isArray(messages) ? messages : [messages as string]
+          }
+        }
+        return ctx.response.status(422).json({
+          message: 'Validation failed',
+          errors,
+        })
+      }
+
+      if (err.code === 'E_ROW_NOT_FOUND') {
+        return ctx.response.status(404).json({
+          message: 'Resource not found',
+        })
+      }
+
+      // Default API error response
+      const status = err.status || err.statusCode || 500
+      return ctx.response.status(status).json({
+        message: err.message || 'Internal server error',
+        ...(this.debug && err.stack && { stack: err.stack }),
+      })
+    }
+
     return super.handle(error, ctx)
   }
 
