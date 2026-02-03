@@ -3,7 +3,8 @@ ARG NODE_IMAGE=node:22
 FROM ${NODE_IMAGE} AS base
 
 # Install additional system dependencies
-RUN apt-get update && appt-get install -y \
+# CORREGIDO: apt-get (no appt-get)
+RUN apt-get update && apt-get install -y \
     curl \
     wget \
     gnupg \
@@ -27,12 +28,10 @@ RUN pnpm install --frozen-lockfile --prod
 # Build stage
 FROM base AS build
 WORKDIR /app
-
-# Copia dependencias y código fuente
 COPY --from=deps /app/node_modules /app/node_modules
 ADD . .
 
-# COMPILA LA APP (Crea la carpeta /app/build)
+# Compilamos la app
 RUN node ace build
 
 # Production stage
@@ -40,17 +39,13 @@ FROM base
 ENV NODE_ENV=production
 WORKDIR /app
 
-# Create a non-root user for security
+# Create a non-root user
 RUN groupadd -r adonis && useradd -r -g adonis -m adonis
 
-# --- CORRECCIONES AQUÍ ---
-
-# 1. Copiar node_modules
+# Copy dependencies
 COPY --chown=adonis:adonis --from=production-deps /app/node_modules /app/node_modules
 
-# 2. Copiar la carpeta 'build' (CORREGIDO)
-# Antes: COPY ... /app (Esto causaba el error de estructura)
-# Ahora: COPY ... /app/build (Mantiene la estructura correcta)
+# CORREGIDO: Copiamos la carpeta build correctamente
 COPY --chown=adonis:adonis --from=build /app/build /app/build
 
 # Switch to adonis user
@@ -59,7 +54,5 @@ USER adonis
 # Expose port
 EXPOSE 3333
 
-# Start the application (CORREGIDO)
-# Antes: "./bin/server.js"
-# Ahora: "./build/server.js" (Es el archivo compilado)
+# CORREGIDO: Iniciamos el archivo compilado
 CMD ["node", "./build/server.js"]
