@@ -11,18 +11,19 @@ services:
       - '3333:3333'
     networks:
       - dokploy-network
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          "require('http').get('http://localhost:3333/health', r => process.exit(r.statusCode === 200 ? 0 : 1))",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    # ❌ comenta el healthcheck por ahora
+    # healthcheck:
+    #   test:
+    #     [
+    #       'CMD',
+    #       'node',
+    #       '-e',
+    #       "require('http').get('http://localhost:3333/health', r => process.exit(r.statusCode === 200 ? 0 : 1))",
+    #     ]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 40s
 
   postgres:
     image: postgres:16-alpine
@@ -42,37 +43,9 @@ services:
     networks:
       - dokploy-network
 
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    volumes:
-      - redis_volume:/data
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
-    healthcheck:
-      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - dokploy-network
-
-  minio:
-    image: minio/minio:latest
-    restart: unless-stopped
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    volumes:
-      - minio_volume:/data
-    command: minio server /data --console-address ":9001" --address ":9000"
-    networks:
-      - dokploy-network
-
 networks:
   dokploy-network:
     external: true
 
 volumes:
   postgres_volume:
-  redis_volume:
-  minio_volume:
