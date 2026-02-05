@@ -13,6 +13,7 @@ services:
       - '3333'
     networks:
       - internal
+      - dokploy
     healthcheck:
       test:
         [
@@ -31,7 +32,6 @@ services:
     restart: unless-stopped
     volumes:
       - postgres_volume:/var/lib/postgresql/data
-      # Volumen para scripts de migración
       - ./scripts/db:/docker-entrypoint-initdb.d
     environment:
       PGPASSWORD: '${DB_PASSWORD}'
@@ -85,6 +85,8 @@ services:
 networks:
   internal:
     driver: bridge
+  dokploy:
+    external: true
 
 volumes:
   postgres_volume:
