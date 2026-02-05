@@ -13225,8 +13225,8 @@ d37ed591-0d1f-4381-bbfd-2b660ed8ce8d	Libro con sonido	2025-09-01 21:43:06.651
 --
 
 COPY public."User" (id, "firstName", "lastName", email, password, role, "createdAt", "isActive") FROM stdin;
-0c664953-a9c1-4cfe-840c-210279e776b3	Emilio	Venegas	admin@admin.com	$2b$10$ICL1ji4CLwv2dJgHyOohxeUKGSn6FQpqgQuIno4ssWrEkmOUnfPbO	OWNER	2025-03-22 09:22:58.222	t
-540db095-5382-4f85-953d-16cb5435c78b	Héctor	Lagos	helagos25@gmail.com	$2b$10$ICL1ji4CLwv2dJgHyOohxeUKGSn6FQpqgQuIno4ssWrEkmOUnfPbO	EMPLOYEE	2025-08-12 12:26:19.911	t
+0c664953-a9c1-4cfe-840c-210279e776b3	Emilio	Venegas	admin@admin.com	$scrypt$n=16384,r=8,p=1$LZ10zJ116vLU3zq3MDj+VA$7kkIi8bEZLeD6x1f6hTOe6qYPMf1mLnWD9fHS3wyMQKEzmrp8bnEwqe5B1LrHsbw9eZsiztB28Rfe+4QAuXfHQ	OWNER	2025-03-22 09:22:58.222	t
+540db095-5382-4f85-953d-16cb5435c78b	Héctor	Lagos	helagos25@gmail.com	$scrypt$n=16384,r=8,p=1$LZ10zJ116vLU3zq3MDj+VA$7kkIi8bEZLeD6x1f6hTOe6qYPMf1mLnWD9fHS3wyMQKEzmrp8bnEwqe5B1LrHsbw9eZsiztB28Rfe+4QAuXfHQ	EMPLOYEE	2025-08-12 12:26:19.911	t
 \.
 
 
