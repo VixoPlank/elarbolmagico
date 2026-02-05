@@ -30,6 +30,7 @@ services:
     restart: unless-stopped
     volumes:
       - postgres_volume:/var/lib/postgresql/data
+      - ./scripts/db:/docker-entrypoint-initdb.d
 
     environment:
       POSTGRES_DB: ${DB_DATABASE}

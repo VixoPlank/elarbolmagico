@@ -2,15 +2,12 @@
 -- PostgreSQL database dump
 --
 
-\restrict NeCDUEqMAOaApJXr3qbJAjyUUPD5FvUrn5xzkNtohvKY5ArEJSUxBTq9U1iqzbM
-
 -- Dumped from database version 15.14
--- Dumped by pg_dump version 18.1
+-- Dumped by pg_dump version 16.1
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
--- SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -2660,16 +2657,21 @@ COMMENT ON TABLE auth.audit_log_entries IS 'Auth: Audit trail for user actions.'
 CREATE TABLE auth.flow_state (
     id uuid NOT NULL,
     user_id uuid,
-    auth_code text NOT NULL,
-    code_challenge_method auth.code_challenge_method NOT NULL,
-    code_challenge text NOT NULL,
+    auth_code text,
+    code_challenge_method auth.code_challenge_method,
+    code_challenge text,
     provider_type text NOT NULL,
     provider_access_token text,
     provider_refresh_token text,
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
     authentication_method text NOT NULL,
-    auth_code_issued_at timestamp with time zone
+    auth_code_issued_at timestamp with time zone,
+    invite_token text,
+    referrer text,
+    oauth_client_state_id uuid,
+    linking_target_id uuid,
+    email_optional boolean DEFAULT false NOT NULL
 );
 
 
@@ -2679,7 +2681,7 @@ ALTER TABLE auth.flow_state OWNER TO supabase_auth_admin;
 -- Name: TABLE flow_state; Type: COMMENT; Schema: auth; Owner: supabase_auth_admin
 --
 
-COMMENT ON TABLE auth.flow_state IS 'stores metadata for pkce logins';
+COMMENT ON TABLE auth.flow_state IS 'Stores metadata for all OAuth/SSO login flows';
 
 
 --
@@ -2893,9 +2895,11 @@ CREATE TABLE auth.oauth_clients (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     deleted_at timestamp with time zone,
     client_type auth.oauth_client_type DEFAULT 'confidential'::auth.oauth_client_type NOT NULL,
+    token_endpoint_auth_method text NOT NULL,
     CONSTRAINT oauth_clients_client_name_length CHECK ((char_length(client_name) <= 1024)),
     CONSTRAINT oauth_clients_client_uri_length CHECK ((char_length(client_uri) <= 2048)),
-    CONSTRAINT oauth_clients_logo_uri_length CHECK ((char_length(logo_uri) <= 2048))
+    CONSTRAINT oauth_clients_logo_uri_length CHECK ((char_length(logo_uri) <= 2048)),
+    CONSTRAINT oauth_clients_token_endpoint_auth_method_check CHECK ((token_endpoint_auth_method = ANY (ARRAY['client_secret_basic'::text, 'client_secret_post'::text, 'none'::text])))
 );
 
 
@@ -3690,7 +3694,7 @@ COPY auth.audit_log_entries (instance_id, id, payload, created_at, ip_address) F
 -- Data for Name: flow_state; Type: TABLE DATA; Schema: auth; Owner: supabase_auth_admin
 --
 
-COPY auth.flow_state (id, user_id, auth_code, code_challenge_method, code_challenge, provider_type, provider_access_token, provider_refresh_token, created_at, updated_at, authentication_method, auth_code_issued_at) FROM stdin;
+COPY auth.flow_state (id, user_id, auth_code, code_challenge_method, code_challenge, provider_type, provider_access_token, provider_refresh_token, created_at, updated_at, authentication_method, auth_code_issued_at, invite_token, referrer, oauth_client_state_id, linking_target_id, email_optional) FROM stdin;
 \.
 
 
@@ -3754,7 +3758,7 @@ COPY auth.oauth_client_states (id, provider_type, code_verifier, created_at) FRO
 -- Data for Name: oauth_clients; Type: TABLE DATA; Schema: auth; Owner: supabase_auth_admin
 --
 
-COPY auth.oauth_clients (id, client_secret_hash, registration_type, redirect_uris, grant_types, client_name, client_uri, logo_uri, created_at, updated_at, deleted_at, client_type) FROM stdin;
+COPY auth.oauth_clients (id, client_secret_hash, registration_type, redirect_uris, grant_types, client_name, client_uri, logo_uri, created_at, updated_at, deleted_at, client_type, token_endpoint_auth_method) FROM stdin;
 \.
 
 
@@ -3875,6 +3879,8 @@ COPY auth.schema_migrations (version) FROM stdin;
 20251104100000
 20251111201300
 20251201000000
+20260115000000
+20260121000000
 \.
 
 
@@ -5576,7 +5582,6 @@ c5ce916f-6f6d-4808-9a2d-790a62682628	Iron man	8435435814762	9900	1	2025-07-01 16
 2d52481c-a3df-4e5c-accd-9403544d60aa	Manualidades fáciles internacionales - Regalos únicos	9781409330684	9900	1	2025-07-10 16:07:42.297	2025-07-10 16:19:55.48	\N	d1690287-40dc-48aa-b054-e293e1810e5f	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	bbe9d2c3-e13b-42df-b5f6-5384c0b114d5	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	manualidades faciles internacionales - regalos unicos
 2d5d18cd-2eaa-4fed-94d7-47be95e542ea	Diario de Ana Frank (tapa dura)	9789807716222	11900	1	2025-06-24 15:13:00.497	2025-07-14 20:21:12.193	\N	c4009d24-6970-47af-aa65-5cda5cb68521	0c664953-a9c1-4cfe-840c-210279e776b3	254801d6-a746-4c12-a378-832bd48b1a2e	9e8c56ec-d78f-4aa4-ba82-7b5fc437d5a1	https://images.cdn2.buscalibre.com/fit-in/360x360/2c/ca/2cca8230e5137808766233db91682851.jpg	\N	BOOK	t	diario de ana frank (tapa dura)
 2d8b840c-db15-4a34-b2f9-cd3858413d01	Pan & Otras Masas: Un Aroma Tradicional	9788466225960	14900	1	2025-05-14 20:54:44.426	2025-05-14 20:54:44.426	\N	c0ea19f0-290e-4bb8-821b-5ee89fab9478	0c664953-a9c1-4cfe-840c-210279e776b3	4ae358a5-6158-4fb8-8269-6a4a19e48b5c	daab4f71-fcb0-4add-815f-c5bbe236e632	https://images.cdn2.buscalibre.com/fit-in/360x360/b4/a7/b4a7ad466eb6c158f0568278a0882d05.jpg	\N	BOOK	t	pan & otras masas: un aroma tradicional
-2dd16ebb-4dcb-4586-9d61-a47dda7fc10c	Enciclopedia de Biografías Ilustradas	9789563121193	19900	2	2025-05-19 20:02:19.815	2025-07-25 15:29:36.22	\N	8893261a-694e-4681-b371-4d1795261249	0c664953-a9c1-4cfe-840c-210279e776b3	af166dca-55c9-4bce-a238-15d6c19d4539	7aeb9f24-ee05-464d-acbe-dfe16a177d3a	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yL1LoSbwCVskmrePfJnZjKHO0c4WxMCALNlvQo	\N	BOOK	t	enciclopedia de biografias ilustradas
 2e29802e-8038-45b4-8eb9-cb909b73aad7	Aventuras del duende melodía	9789561224162	5900	3	2025-07-14 18:13:59.774	2025-07-14 18:13:59.774	\N	2ccf94ec-b698-46a0-bcfe-e035cecc2f13	0c664953-a9c1-4cfe-840c-210279e776b3	4331c7bd-0113-4156-aacb-083ef1bee139	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://images.cdn3.buscalibre.com/fit-in/360x360/8a/66/8a6677b3e69bd557d02e6d099d12e3ad.jpg	\N	BOOK	t	aventuras del duende melodia
 2e7b8537-34d4-405d-ace3-e9b78dcca21c	New Holland Agriculture T6.175 Dynamic Command	3539186361003	64900	1	2025-06-11 19:16:58.909	2025-06-11 19:16:58.909	38224cff-24fa-4456-a695-38971ac88d79	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	12b98272-cbbb-4867-9c92-6a756145c50b	OTHER	t	new holland agriculture t6.175 dynamic command
 2ec60225-792d-4640-905a-97a4ec9cd609	El niño que enloqueció de amor	9789563162400	8900	1	2025-07-22 16:53:34.696	2025-07-22 16:53:49.516	\N	4470b6d0-34c0-4acf-ad5c-14f7ad829324	0c664953-a9c1-4cfe-840c-210279e776b3	278bb74a-3a36-4d16-b1b4-cb823a503d5c	2a373af6-465d-48df-b36e-e390d2ecf45c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLv5uuRYv8OyHjWuR8BeCSoiJ5TIPLpzMZUcKQ	\N	BOOK	t	el niño que enloquecio de amor
@@ -5589,6 +5594,7 @@ c5ce916f-6f6d-4808-9a2d-790a62682628	Iron man	8435435814762	9900	1	2025-07-01 16
 2d6ac23f-2be2-4d54-8cc6-b701f0315c98	Agujeros negros: Destructores del tiempo	9789563608892	24900	0	2025-05-27 20:32:10.13	2026-01-12 20:48:22.762	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	4052b3ac-0e8b-46c3-8893-bf38f9e8e99b	46ba99ef-f53b-439e-9870-790e6befe611	https://images.cdn1.buscalibre.com/fit-in/360x360/2c/dc/2cdc1f2a554f99349d148e36c4648aad.jpg	\N	BOOK	t	agujeros negros: destructores del tiempo
 2f385f8f-bd2a-4470-8332-13452ae65ebe	Alpine A524 - Pierre Gasly F1	4893993017997	15900	1	2025-07-11 20:32:59.227	2026-01-14 16:28:22.642	29584232-8f4b-4c26-832b-41b3b66e76ca	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLlAAOh7FLstDGcFrYen43XEOzJMWjUAHyCaQq	b30e7e47-7dee-4314-9630-da15fa34954f	OTHER	t	alpine a524 - pierre gasly f1
 2e6d2d6d-dc39-4497-acc2-ab8cde74a1b3	Rapunzel	9789563162424	3500	1	2025-06-19 20:06:56.329	2026-01-29 18:48:08.64	\N	4470b6d0-34c0-4acf-ad5c-14f7ad829324	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://images.cdn2.buscalibre.com/fit-in/360x360/31/e9/31e95d1908d4ec510df5e7b70635c6f1.jpg	\N	BOOK	t	rapunzel
+2dd16ebb-4dcb-4586-9d61-a47dda7fc10c	Enciclopedia de Biografías Ilustradas	9789563121193	19900	1	2025-05-19 20:02:19.815	2026-02-05 15:56:11.111	\N	8893261a-694e-4681-b371-4d1795261249	0c664953-a9c1-4cfe-840c-210279e776b3	af166dca-55c9-4bce-a238-15d6c19d4539	7aeb9f24-ee05-464d-acbe-dfe16a177d3a	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yL1LoSbwCVskmrePfJnZjKHO0c4WxMCALNlvQo	\N	BOOK	t	enciclopedia de biografias ilustradas
 2e8d6865-db53-4054-a166-b98b2602fa3f	Brian's Toyota Supra - Rápidos y Furiosos	801310973752	34900	0	2025-07-05 16:17:40.919	2025-10-11 17:58:09.781	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	b89307bd-a39a-4ede-b4f6-1ac95a1731e6	OTHER	t	brian's toyota supra - rapidos y furiosos
 2f3904a1-7cf6-4907-b6ab-b9c8cc0fd305	El universo en una cáscara de nuez	9789569993749	20900	1	2025-07-23 20:48:28.165	2025-12-18 20:59:47.77	\N	9105184a-1a19-48a7-9164-d6c343680a01	0c664953-a9c1-4cfe-840c-210279e776b3	c104206a-1a4a-4090-a4d9-93f86e0b35ea	5b2606c2-1b0f-49ed-a2b8-45771a7e6159	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLthqKoEmnsbSLIFeQh8CMvA6iYH24xqwKjPdo	\N	BOOK	t	el universo en una cascara de nuez
 2fbe835f-d000-4190-982b-c695388ecc48	Pack Diccionario práctico español-ingles (Tomo l y ll)	9789584215055	6900	1	2025-07-09 17:51:29.005	2025-07-09 17:51:29.005	\N	7604b1ff-2ff0-4459-8121-067eab8f5648	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	2b56fabe-96ca-4e8e-b451-36e9c30abf28	https://image.cdn1.buscalibre.com/513e3349f2af8cf12ba2679d.__RS360x360__.jpg	\N	BOOK	t	pack diccionario practico español-ingles (tomo l y ll)
@@ -5769,7 +5775,6 @@ ca0111cc-a109-47ff-8148-a7ed5a216bb3	1929 Ford Model A	178133241FD	19900	1	2025-
 417b7bf2-615a-4c09-b7d7-2c97285aa109	Numerología Significados y aplicaciones	9789972233333	7900	1	2025-06-02 18:29:10.906	2025-06-02 18:29:10.906	\N	1ceb8b01-dfe8-454b-969d-8af1ce87e646	0c664953-a9c1-4cfe-840c-210279e776b3	cdd87b24-3eab-4372-bac1-ce08a6c8ae4f	26b7d823-5516-4f4f-b3ed-3ed3ac2d8e3e	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	numerologia significados y aplicaciones
 41a001ee-aa6a-4d87-994a-770230acd91d	El príncipe encantado	9789563164442	3500	2	2025-06-19 20:11:23.803	2025-06-23 15:09:27.16	\N	4470b6d0-34c0-4acf-ad5c-14f7ad829324	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	el principe encantado
 41a535c1-5070-43a9-9272-d9d76621559a	RUMMY juego de rapidez mental	8412553014137	19900	1	2025-06-13 16:37:50.1	2025-06-13 16:37:50.1	3414f054-2052-44e2-890a-d4d84fa610cf	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	293ea506-00f1-44c4-a1a1-765aa95fe983	OTHER	t	rummy juego de rapidez mental
-41d751c4-09ca-4763-a62c-3d1ed9ff7df0	El traje nuevo del emperador	9789563163605	3500	1	2025-06-19 19:47:52.26	2025-06-23 15:09:32.389	\N	4470b6d0-34c0-4acf-ad5c-14f7ad829324	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	el traje nuevo del emperador
 42087519-c023-48bf-8050-2117660af6cd	Paw Patrol – Ultimate Firetruck (Camión de Bomberos)	778988387290	17900	1	2025-06-30 21:20:25.563	2025-06-30 21:20:25.563	f893a79b-b0c3-4cb0-afca-b822cf306bd2	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	490da1bc-788c-4e2f-8062-85ff4a20af7e	OTHER	t	paw patrol – ultimate firetruck (camion de bomberos)
 424d38d2-23d4-41ba-9a09-e786fd04928c	El Gran Libro De El Porque De Las Cosas	9786075328546	17900	0	2025-07-03 16:39:04.015	2025-07-03 16:39:04.015	\N	82cfcfc7-6394-4821-8290-600e4a8c83ab	0c664953-a9c1-4cfe-840c-210279e776b3	2bb2912e-5429-4d27-8220-eb9389d1f1fe	2b56fabe-96ca-4e8e-b451-36e9c30abf28	https://images.cdn3.buscalibre.com/fit-in/360x360/41/38/41385084a1fce1a24b7acb6f51cd1fbc.jpg	\N	BOOK	t	el gran libro de el porque de las cosas
 42759f83-d069-4ae5-a787-d8873abe10f7	Clásicos universales - Canto general ll Pablo Neruda	9788449420689	5900	1	2025-06-26 17:07:51.933	2025-06-26 17:07:51.933	\N	1e5a1cc5-c644-4ff1-8123-8744eb4debba	0c664953-a9c1-4cfe-840c-210279e776b3	ad22d923-03d6-4914-be80-b728f4f39ef4	1656f60f-55e4-4819-8215-369a9c5c1ac8	https://images.cdn3.buscalibre.com/fit-in/360x360/e5/29/e5290f6c7956f24c6982b98a51da272a.jpg	\N	BOOK	t	clasicos universales - canto general ll pablo neruda
@@ -5968,11 +5973,11 @@ f22bf053-3f31-460c-849b-1606412e5014	Telepatía	9789562403948	5900	1	2025-06-05 
 589e3b46-b3a6-473b-a839-8fa52911360c	Frozen - Momentos mágicos	9789588811741	4900	1	2025-06-18 19:03:34.848	2025-06-18 19:03:34.848	\N	5f3b9716-8b0e-4768-8ca2-ff92c20e8d76	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://images.cdn2.buscalibre.com/fit-in/360x360/f5/e9/f5e96eb03d2c0b787b5e034c652af569.jpg	\N	BOOK	t	frozen - momentos magicos
 58ff071f-72e0-4ace-aeec-10bb14e74390	El libro de los músculos - Anatomía/Exploración/Función	9788497514460	24900	1	2025-07-10 17:22:47.184	2025-07-10 17:22:47.184	\N	2db87f75-c884-42c5-8bff-27fbf011c082	0c664953-a9c1-4cfe-840c-210279e776b3	10de195a-baf5-4e66-a663-60591bc65181	2b56fabe-96ca-4e8e-b451-36e9c30abf28	https://images.cdn3.buscalibre.com/fit-in/360x360/a5/e9/a5e9243d2b572fc68e8ee86b79a79d67.jpg	\N	BOOK	t	el libro de los musculos - anatomia/exploracion/funcion
 58f915ac-fa13-411b-919e-44579b7be4d4	Chile: La memoria prohibida (tomo 2)	9789564084060	29900	0	2025-05-26 22:03:06.943	2025-09-01 19:15:49.092	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	db0503d8-5f1e-4306-b21d-0d59a865201d	278e4f31-ce1c-4e30-99f8-18cc05cc075f	https://images.cdn1.buscalibre.com/fit-in/360x360/64/19/6419dc48d9ccfb8718cea4e677466d0d.jpg	\N	BOOK	t	chile: la memoria prohibida (tomo 2)
-56e02a2d-b804-43da-97bc-af498c14925c	El Libro de los Espíritus ( colección nueva era )	9788419087218	9900	4	2025-07-25 15:11:24.601	2025-10-07 15:11:17.174	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	95fe3222-710f-48f6-ad8a-7d12f958fce4	26b7d823-5516-4f4f-b3ed-3ed3ac2d8e3e	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yL5WOwIQrgFtIDJKRbALvHl14E2Ue6kdcpQ7gP	\N	BOOK	t	el libro de los espiritus ( coleccion nueva era )
 58699da7-d8f5-4545-8167-176985aa9f1b	El Castillo de Otranto	9788419651648	13900	2	2025-06-10 16:33:43.305	2025-10-17 15:36:16.178	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	296a8296-2786-4aeb-babb-c17fab263dfb	2a373af6-465d-48df-b36e-e390d2ecf45c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLNRs8x4CsBMjiSEXFgZ9mrx3fQ2D0qt4dvaGz	\N	BOOK	t	el castillo de otranto
 575b445b-1963-480a-b1dd-e69bcc4232ce	El Beso de la Mujer Araña	9789562479288	7900	1	2025-07-18 21:18:35.66	2025-10-11 14:56:53.796	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	932f137e-9281-467a-9923-c34d19f39d8e	789143ad-3d30-4ff0-916b-2c93997dd3da	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLLdGfUoPTucdqakyFmt421xnwQoW8ZHBiNzGU	\N	BOOK	t	el beso de la mujer araña
 56a96b08-f77d-4594-a72d-85803ad964ed	Cuento Ilustrado 3D - La Cenicienta ¡Pop Up!	9788417477028	8900	2	2025-06-24 17:50:32.143	2025-11-22 13:45:50.429	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLLmLCLvPTucdqakyFmt421xnwQoW8ZHBiNzGU	\N	BOOK	t	cuento ilustrado 3d - la cenicienta ¡pop up!
 572ce1f2-c7bf-453d-ba4b-985e134fc7b6	Un Mundo Feliz	9789563342291	11900	1	2025-06-09 22:13:21.306	2025-12-09 18:17:26.051	\N	78f31138-2e78-4abf-a1f5-4ac92a944e3d	0c664953-a9c1-4cfe-840c-210279e776b3	60a43e77-afff-4d81-8180-ce3e4b23b4ff	4732541b-2de7-4d3f-80c7-223b5a5ec43e	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLTGucjUtSqdiD0bSQgYG9p4kjaAO81nMuxJFZ	\N	BOOK	t	un mundo feliz
+56e02a2d-b804-43da-97bc-af498c14925c	El Libro de los Espíritus ( colección nueva era )	9788419087218	9900	3	2025-07-25 15:11:24.601	2026-02-05 16:55:43.589	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	95fe3222-710f-48f6-ad8a-7d12f958fce4	26b7d823-5516-4f4f-b3ed-3ed3ac2d8e3e	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yL5WOwIQrgFtIDJKRbALvHl14E2Ue6kdcpQ7gP	\N	BOOK	t	el libro de los espiritus ( coleccion nueva era )
 5912c62b-022c-405d-ae14-6a55c8cdc0ab	Cuento ilustrado 3D - Caperucita Roja	9789566157281	11900	0	2025-06-24 17:27:23.318	2025-08-08 22:19:27.914	\N	660f01c2-b7eb-4a77-a4ab-7a325cb16294	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://images.cdn2.buscalibre.com/fit-in/360x360/59/88/5988ca2f25ee001570353544db1393c0.jpg	\N	BOOK	t	cuento ilustrado 3d - caperucita roja
 592e3fce-4d53-4c3a-978a-828d6aa07777	Las descabelladas aventuras de Julito Cabello	9789563630923	11900	2	2025-07-14 16:13:07.537	2025-07-14 16:13:07.537	\N	2d2b8347-99e2-4275-b956-f5be9501b3a8	0c664953-a9c1-4cfe-840c-210279e776b3	8125305d-f89f-45fd-8209-e21bcf468355	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://images.cdn3.buscalibre.com/fit-in/360x360/c5/ba/c5ba61cd1f763522e8ba26eb335a372f.jpg	\N	BOOK	t	las descabelladas aventuras de julito cabello
 59af0619-85ba-4e8b-a32a-80669091c172	Rompecabezas de madera - Imagen letra palabra	7804606581245	8900	1	2025-06-26 19:53:17.905	2025-06-27 19:28:38.059	fa5f6070-e214-4024-9c5a-1830419ffa96	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	7544a5c4-586a-4c0e-8e57-7cc229a7043f	OTHER	t	rompecabezas de madera - imagen letra palabra
@@ -5989,8 +5994,8 @@ f22bf053-3f31-460c-849b-1606412e5014	Telepatía	9789562403948	5900	1	2025-06-05 
 5aa54a98-d431-4747-9da7-d60f5679e977	Una corte de llamas plateadas	9789563609967	26900	3	2025-06-03 21:41:51.062	2025-10-11 14:44:01.645	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	b2102c24-1f04-484a-9983-300868c5b8aa	c2655739-37ff-4178-b0f3-41eb843caf58	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLkzDuTABZcyiew1Slg2YEMfRuzoAq0bHxvVBW	\N	BOOK	t	una corte de llamas plateadas
 5b0a0c0c-e342-4785-bac3-017b9a69363f	Frankenstein	9789566180203	11900	0	2025-06-05 16:38:11.995	2025-11-14 16:39:39.805	\N	7604b1ff-2ff0-4459-8121-067eab8f5648	0c664953-a9c1-4cfe-840c-210279e776b3	b8e0bba6-1b3f-49fc-abf0-02fbb8ff1449	789143ad-3d30-4ff0-916b-2c93997dd3da	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLMXiOrEnNqFUYKnxds0kpoiOIVWE7TAzS6fBg	\N	BOOK	t	frankenstein
 5b2db940-9725-4b7a-a070-a0108e131b12	Autos policia - Ford '99 crown victoria	8436534116313	9900	3	2025-06-26 18:25:45.327	2025-06-26 18:25:45.327	5e6b6944-cabe-4b51-bd69-4e53aca506c4	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	caf7579c-f524-4ef5-b20f-85f5c8627de4	OTHER	t	autos policia - ford '99 crown victoria
-5b2bf81e-5317-42df-ad1b-6f01b990052b	Animales de la Granja - Toca y Siente con Sonidos	9788418211720	14900	1	2025-08-05 16:42:28.959	2026-01-12 21:49:12.269	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yL76penoks9x3eQvZqNbo8IW5pjJRLDziHtfXP	\N	BOOK	t	animales de la granja - toca y siente con sonidos
 59d5245e-7555-46b9-98d9-5b3c5eca9d88	Ferrari SF-24 C. Leclerc F1	4893993368433	15900	2	2025-07-11 20:32:44.398	2026-01-14 16:29:19.131	29584232-8f4b-4c26-832b-41b3b66e76ca	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yL6AeIvhGxGTwJMWy4bfqpDNl09QzFjYoROSPe	b30e7e47-7dee-4314-9630-da15fa34954f	OTHER	t	ferrari sf-24 c. leclerc f1
+5b2bf81e-5317-42df-ad1b-6f01b990052b	Animales de la Granja - Toca y Siente con Sonidos	9788418211720	14900	0	2025-08-05 16:42:28.959	2026-02-05 14:07:17.092	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yL76penoks9x3eQvZqNbo8IW5pjJRLDziHtfXP	\N	BOOK	t	animales de la granja - toca y siente con sonidos
 59eff9cf-a8e5-41bb-bcd6-d67191671558	El túnel	9789566293378	7900	3	2025-07-09 15:14:51.619	2026-01-30 15:45:15.279	\N	e4de0ec7-f34a-4f1c-af3c-43ae23552116	0c664953-a9c1-4cfe-840c-210279e776b3	2689ceb2-18a5-4ab8-b394-c00900fc5ea0	2a373af6-465d-48df-b36e-e390d2ecf45c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLCc4uyStDhkxy6FeATlfXv9mV5iwacQRqWYd7	\N	BOOK	t	el tunel
 5b3b6a5d-4b2f-47f6-a890-943e583630d8	La Alimentación 99 Consejos Para Mantener La Calma	9788475562919	4900	1	2025-06-05 16:10:06.02	2025-06-05 16:10:06.02	\N	1e5a1cc5-c644-4ff1-8123-8744eb4debba	0c664953-a9c1-4cfe-840c-210279e776b3	5c126e24-fc45-46f6-b33a-3c7d1f5fed6b	fd0a1b8a-5b94-4cac-8fe8-b13f6ee07df1	https://images.cdn3.buscalibre.com/fit-in/360x360/a2/90/a290e120598a05131abdba58a3c499a6.jpg	\N	BOOK	t	la alimentacion 99 consejos para mantener la calma
 5b3d88a9-abf8-46c1-a333-603144ccc701	Aurora	9788415605218	6900	2	2025-06-10 19:49:38.308	2025-07-24 20:58:43.685	\N	6166f1a8-d82c-455f-bc40-a5c076adeeb6	0c664953-a9c1-4cfe-840c-210279e776b3	8c01d6a6-3223-4587-86b4-8908e090d90a	4732541b-2de7-4d3f-80c7-223b5a5ec43e	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yL6vHuIdGxGTwJMWy4bfqpDNl09QzFjYoROSPe	\N	BOOK	t	aurora
@@ -6040,7 +6045,6 @@ f22bf053-3f31-460c-849b-1606412e5014	Telepatía	9789562403948	5900	1	2025-06-05 
 607cde32-bcad-404f-bc9c-69ddabbfaf67	Cambia tu Futuro por las Aperturas Temporales	9788415292463	23900	1	2025-07-05 18:10:15.895	2025-09-23 17:44:39.742	\N	a4573fd6-a82d-4b58-abcb-93c8009c9902	0c664953-a9c1-4cfe-840c-210279e776b3	b2ca845c-b652-4a33-a287-43316b894ef8	e70be43e-9e30-4ee7-af87-6b738ca2959f	https://images.cdn3.buscalibre.com/fit-in/360x360/7b/bd/7bbd5e35e725478705a8b45098e64a9f.jpg	\N	BOOK	t	cambia tu futuro por las aperturas temporales
 5f567709-ce42-4d88-a62b-c823607704a2	La sonrisa de Gladys	9789564082059	20900	1	2025-06-03 15:59:40.137	2025-12-18 21:30:09.307	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	d4b96f2e-ee6a-4981-a1e1-d55bb7d3175d	624638b0-1543-4d80-9344-06fd994fd847	https://images.cdn3.buscalibre.com/fit-in/360x360/91/61/9161becc921683acbe45292bbaa0c452.jpg	\N	BOOK	t	la sonrisa de gladys
 5f490c6e-1eef-4514-bfa4-90f956006e58	Kika y las Estrellas	9789566159711	14900	1	2025-07-03 21:10:33.194	2025-12-10 15:19:48.641	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	d72aa63a-f72b-4e25-9cd9-a713c23064f1	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://images.cdn3.buscalibre.com/fit-in/360x360/10/fe/10fe8730fc71ec4172f78eb72068f329.jpg	\N	BOOK	t	kika y las estrellas
-60be7e4d-648d-466c-b1cd-ac70f53b4818	Cubic Estación de bomberos 254 pcs (compatible con otras marcas)	297170518282	19900	1	2025-06-11 20:24:26.341	2025-12-12 20:16:20.671	b67aebf5-2f78-434a-afd3-b3fe46b99c8d	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	91163c8b-22be-4e51-b2f8-48802f264eb5	OTHER	t	cubic estacion de bomberos 254 pcs (compatible con otras marcas)
 60def4ae-9f79-4298-b66c-32f69e5ca81a	Cuentos para pintar - Blancanieves y El hombre de jengibre	9789569532375	1900	2	2025-06-23 16:15:00.146	2025-06-23 16:15:00.146	\N	660f01c2-b7eb-4a77-a4ab-7a325cb16294	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	bbe9d2c3-e13b-42df-b5f6-5384c0b114d5	https://images.cdn1.buscalibre.com/fit-in/360x360/29/cf/29cf67f8078c0dceab128112dfe12cc4.jpg	\N	BOOK	t	cuentos para pintar - blancanieves y el hombre de jengibre
 60e74eac-6afb-4d7c-9ca9-27c64e375d28	El mundo en fotos - Las 4 estaciones	9788491677734	4900	1	2025-06-24 20:36:48.876	2025-06-24 20:36:48.876	\N	eed87305-0f4e-4a01-a8ab-9f21cb9380e2	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	2b56fabe-96ca-4e8e-b451-36e9c30abf28	https://statics.cdn1.buscalibre.com/no_image/ni10.__RS360x360__.jpg	\N	BOOK	t	el mundo en fotos - las 4 estaciones
 60fa6396-6ed4-45ee-b96a-2f48c1f8d052	City coach - Bus service line City Tour	5050840000246	9900	1	2025-07-01 15:39:18.837	2025-07-01 15:39:18.837	51ca610a-9abe-4f3a-817f-e20cb1ed8205	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	e61a7645-5708-4931-9b62-27791a89255c	OTHER	t	city coach - bus service line city tour
@@ -6270,7 +6274,6 @@ eb9d302f-e34b-4c91-857c-4b0becf885df	1580 Audi RS 5 Racing	4006874015801	7900	0	
 794930a3-cc27-4fd8-a2f5-c6d8e64bbdfd	Maldito amor	9789564082943	15900	1	2025-06-04 16:37:36.439	2025-06-04 16:37:36.439	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	1aa1583c-7099-45a8-9a16-4d9ed485982e	e70be43e-9e30-4ee7-af87-6b738ca2959f	https://images.cdn1.buscalibre.com/fit-in/360x360/a2/18/a21800bf822428a78fc29a898d344762.jpg	\N	BOOK	t	maldito amor
 799c28aa-6280-4352-8198-1d1f636a2680	Coloreo y Aprendo Mapudungun - El clima y las estaciones del año	9789566097693	1500	2	2025-06-18 18:29:53.941	2025-06-18 18:29:53.941	\N	660f01c2-b7eb-4a77-a4ab-7a325cb16294	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	2b56fabe-96ca-4e8e-b451-36e9c30abf28	https://images.cdn1.buscalibre.com/fit-in/360x360/6a/41/6a411f54884475a624eff8a91e1483d2.jpg	\N	BOOK	t	coloreo y aprendo mapudungun - el clima y las estaciones del año
 799ea31d-7d31-4cfb-a9d4-b00a3511b349	1970 Dodge Charger - Rápidos y Furiosos X Fast	801310349182	34900	1	2025-06-26 21:21:46.597	2025-06-26 21:37:45.829	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	b89307bd-a39a-4ede-b4f6-1ac95a1731e6	OTHER	t	1970 dodge charger - rapidos y furiosos x fast
-79be96ac-76aa-4e5b-af8b-b447912abd71	Hércules	9789563164473	3500	1	2025-06-19 19:56:24.999	2025-06-23 15:09:35.025	\N	4470b6d0-34c0-4acf-ad5c-14f7ad829324	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	hercules
 79c6cc6f-1c64-4289-9b81-671325b1d097	El guardavía y otro relato	9788494027215	3900	2	2025-05-29 21:40:13.175	2025-06-05 15:50:04.014	\N	4b540801-745e-4466-b60c-4975aed49a03	0c664953-a9c1-4cfe-840c-210279e776b3	e0b51f85-4a27-405c-adc4-f4ef9572ee69	0405d6d2-f390-49be-a577-5309e4033cee	https://images.cdn3.buscalibre.com/fit-in/360x360/91/23/9123d5faf86b528730af6481164c2da3.jpg	\N	BOOK	t	el guardavia y otro relato
 79ea8766-ec71-41cb-a33c-1aefb516b226	Agenda Ascott Manager Clásica – Color Café	7807265067563	3900	2	2025-06-25 20:14:31.521	2025-06-25 20:14:31.521	4a206dc6-21d3-4f71-9b9e-6f02ab1f01c3	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	a4704c4f-b3ef-44c6-a914-227f82f76bd6	OTHER	t	agenda ascott manager clasica – color cafe
 7a035ffb-47a6-4bd0-9e0c-4eaee8c5f57a	El poder curativo del chocolate	9788497772601	4900	2	2025-05-29 21:36:31.658	2025-07-10 18:24:04.1	\N	6abdfdae-9e34-4e66-908d-705e65b0dc96	0c664953-a9c1-4cfe-840c-210279e776b3	fc2daf0b-7b7f-4389-82b8-2891303b526f	fd0a1b8a-5b94-4cac-8fe8-b13f6ee07df1	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	el poder curativo del chocolate
@@ -6814,13 +6817,13 @@ acb99e57-3d26-45e8-8318-87273f197047	La tierra - Libro con imágenes	97884163817
 acc9b7e5-66b3-4bfe-b942-a612e848e480	Virtual Hero 3: La Máscara del Troll	9789563602463	13900	3	2025-06-30 19:24:07.926	2025-07-31 16:24:25.569	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	d32435c9-bc65-4476-8490-18487e33b3ec	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://images.cdn1.buscalibre.com/fit-in/360x360/e6/47/e647009124d338aca477843bc8ce4588.jpg	\N	BOOK	t	virtual hero 3: la mascara del troll
 ace47a52-e3a6-4952-a6b5-60748a8cbb35	Mini biografías - Teresa de Calcuta "Madre de todos los niños"	9788467715286	4900	1	2025-07-02 19:21:00.635	2025-07-02 19:21:00.635	\N	8286acae-148d-4338-b6eb-90552ca2648c	0c664953-a9c1-4cfe-840c-210279e776b3	7c235717-352c-4ca8-88fb-60f051998098	9e8c56ec-d78f-4aa4-ba82-7b5fc437d5a1	https://images.cdn3.buscalibre.com/fit-in/360x360/8c/d2/8cd2f92228ce73e15811a10f1b027ac0.jpg	\N	BOOK	t	mini biografias - teresa de calcuta "madre de todos los niños"
 bb4e15ae-7700-400c-9478-0604e2f124f1	1960 Chevy Impala (Timeless Legends)	661732731107	54900	1	2025-06-23 17:11:48.428	2025-08-02 15:38:27.934	b03e9b7b-2dd9-49a6-b3d9-1bacee8f43bb	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yL1ctiBFVskmrePfJnZjKHO0c4WxMCALNlvQou	a24827d5-93d9-4bfc-8d3b-b83cb2122db4	OTHER	t	1960 chevy impala (timeless legends)
-ac9b99d0-d3ae-41e3-ab09-f2d9aa79b41a	Narrativa Completa	9788419651457	31900	1	2025-06-16 17:28:37.333	2025-12-12 13:35:34.075	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	257a09b0-f064-4cf2-8ccd-a803bd998465	4732541b-2de7-4d3f-80c7-223b5a5ec43e	https://images.cdn3.buscalibre.com/fit-in/360x360/de/b1/deb191812936ee3c18591ab621646fb6.jpg	\N	BOOK	t	narrativa completa
 ac6f6e13-6fea-4397-af47-790c4c8f1c8a	El arte de amar	9789564083216	7900	2	2025-07-18 21:31:15.468	2025-12-02 19:32:54.586	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	19096e9f-dd6a-41c3-b503-7c1c8be41968	e70be43e-9e30-4ee7-af87-6b738ca2959f	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLP1QYHKA4t3yLXH2jVqpGFDICo91fYZK0ai7g	\N	BOOK	t	el arte de amar
 acfdafc1-d0b7-409a-a772-ff2d04d55889	El Fantasma de la Ópera	9788415605294	6900	1	2025-06-10 18:06:37.437	2025-11-03 17:37:45.119	\N	6166f1a8-d82c-455f-bc40-a5c076adeeb6	0c664953-a9c1-4cfe-840c-210279e776b3	ffef30cd-103a-4f74-8bd6-abb659e35aab	4732541b-2de7-4d3f-80c7-223b5a5ec43e	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLMiaeuKnNqFUYKnxds0kpoiOIVWE7TAzS6fBg	\N	BOOK	t	el fantasma de la opera
 ad10ac55-8006-4ede-9cad-4359c0b573af	Libro con Sonidos - Peter Pan	9788418211461	13900	1	2025-06-27 21:34:13.075	2025-08-01 03:10:44.836	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLhtLxRSECFTo4mcgVyPRzpnN83ufXqi1SIv92	\N	BOOK	t	libro con sonidos - peter pan
 ad188279-39a0-4be9-96cc-754f6a9a6f09	Dom's Chevrolet Chevelle SS - Rápidos y Furiosos	801310971932	34900	0	2025-06-26 21:18:33.272	2025-07-07 18:48:45.866	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	b89307bd-a39a-4ede-b4f6-1ac95a1731e6	OTHER	t	dom's chevrolet chevelle ss - rapidos y furiosos
 ac753f22-1479-421b-8ed8-42f01f4b2d96	Mclaren Senna (Timeless Legends)	2998834637722	19900	0	2025-07-11 18:49:45.14	2026-01-13 15:04:28.966	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLkiKZY3BZcyiew1Slg2YEMfRuzoAq0bHxvVBW	a24827d5-93d9-4bfc-8d3b-b83cb2122db4	OTHER	t	mclaren senna (timeless legends)
 acaf260b-bbee-4179-a18a-d162bbb914b7	El Poder Curativo de los Cuarzos y las Gemas	9789972286315	7900	0	2025-06-02 15:08:43.092	2026-02-02 18:32:50.8	\N	f75fe2ef-de01-455d-b651-3a6c1a2d8731	0c664953-a9c1-4cfe-840c-210279e776b3	f000cd74-ec79-4a68-870c-8a7f2190bf74	26b7d823-5516-4f4f-b3ed-3ed3ac2d8e3e	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	el poder curativo de los cuarzos y las gemas
+ac9b99d0-d3ae-41e3-ab09-f2d9aa79b41a	Narrativa Completa	9788419651457	31900	0	2025-06-16 17:28:37.333	2026-02-05 16:08:28.823	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	257a09b0-f064-4cf2-8ccd-a803bd998465	4732541b-2de7-4d3f-80c7-223b5a5ec43e	https://images.cdn3.buscalibre.com/fit-in/360x360/de/b1/deb191812936ee3c18591ab621646fb6.jpg	\N	BOOK	t	narrativa completa
 ae1b0485-17b2-43ad-a774-7675027e76bb	Psicología del niño Problemas y soluciones	9789972233128	7900	1	2025-06-02 18:23:48.756	2025-06-02 18:26:02.791	\N	1ceb8b01-dfe8-454b-969d-8af1ce87e646	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	e70be43e-9e30-4ee7-af87-6b738ca2959f	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	psicologia del niño problemas y soluciones
 ae68a281-4603-4d79-b83e-9b8ce887edb7	Sucedió en paso al monte	9789561220348	5900	1	2025-07-08 19:11:09.995	2025-07-08 19:11:09.995	\N	2ccf94ec-b698-46a0-bcfe-e035cecc2f13	0c664953-a9c1-4cfe-840c-210279e776b3	add40fd4-6d4b-4e56-a659-db791b6df825	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://statics.cdn1.buscalibre.com/no_image/ni10.__RS360x360__.jpg	\N	BOOK	t	sucedio en paso al monte
 ae93d144-1bbf-4588-b03a-9fb9801964db	Como ser vegan hoy	9789564084565	16900	1	2025-06-04 16:49:48.726	2025-06-04 16:49:48.726	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	3f32f9fa-4003-434e-9c29-750b7e4d6e0a	cbadf4c9-d5e5-4000-ab87-0e9a8f10dd72	https://images.cdn2.buscalibre.com/fit-in/360x360/78/85/78850a5e3ade829e60620f8414ab1019.jpg	\N	BOOK	t	como ser vegan hoy
@@ -7638,12 +7641,12 @@ c3548b4d-47c8-401a-b0f1-afab7c66bd05	Principios Elementales de Filosofía ( cole
 8a5fc415-8222-49f3-a528-dd6c9914536d	Tao te King Pluton ( colección eterna )	9788415089124	6900	2	2025-06-09 19:22:30.277	2025-10-03 15:11:36.11	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	c181ecb9-32d9-42cc-8b8b-f14e0ec7d99f	984929df-2bde-4144-8d72-d19efb4f7df3	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLZUqsb51pdQ0Da1b2fW796NlT5H4jCeMtRrVX	\N	BOOK	t	tao te king pluton ( coleccion eterna )
 7544aea2-4ec2-4894-9a60-dc49cdf62b93	El universo según Carlota - Agujeros negros y explosiones estelares	9789566159292	14900	1	2025-07-03 21:51:20.214	2025-12-18 21:53:45.366	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	8f36d4dd-bf75-4c97-9944-9253e9c3a7d9	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://images.cdn2.buscalibre.com/fit-in/360x360/ea/fd/eafd887d2899d420a199dab5a5e57477.jpg	\N	BOOK	t	el universo segun carlota - agujeros negros y explosiones estelares
 f55714ee-e4be-43c2-8f40-27f55903973e	Motorcycles – Ducati Hypermotard SP / Kawasaki KX 450F Verde	090159311010	19900	0	2025-06-30 21:36:01.932	2025-08-16 15:27:56.298	34b4c609-8f86-4d16-a5f2-0c57effb07e4	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLfXzwJLGRk0r6RoJQlvnBZ4uShtCzAjpV1DFN	001a487e-024c-49b5-8b5a-0aa9773e0d07	OTHER	t	motorcycles – ducati hypermotard sp / kawasaki kx 450f verde
-0b598417-5e37-4412-a375-18bb436d3c73	La Biblia Dios Habla ahora	9781576971581	21900	10	2025-08-16 16:33:31.863	2025-08-16 16:33:31.863	\N	24ba5aa6-a364-4458-97cf-344ce39d2228	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	89930d37-22b6-479b-b5c3-62a1592386f2	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	la biblia dios habla ahora
 6bb736f2-b30a-4165-a13e-43f0da70d4b2	Volkswagen The Originals - Variedad de modelos	1467452065426	8900	1	2025-06-12 20:56:58.834	2025-08-16 17:22:06.639	51ca610a-9abe-4f3a-817f-e20cb1ed8205	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	4809debe-ff12-4b3b-8afe-0b4cd0a127bd	OTHER	t	volkswagen the originals - variedad de modelos
 5ce9ebfc-3632-4309-a25c-e65361e7f59e	Flota de misiones de Star Wars: Luke Skywalker y Grogu con el caza X-Wing (F3789)	5010993905034	27900	0	2025-06-13 16:15:06.256	2025-08-16 17:56:23.68	ceb7a959-3cf2-4feb-9eba-7d4c29b46db0	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	0c226097-92c5-4490-969e-8214719b108f	OTHER	t	flota de misiones de star wars: luke skywalker y grogu con el caza x-wing (f3789)
 acc80cf7-4cc1-4cce-99d0-c9e9d8907f5a	Una introducción a un curso de milagros	9788493727420	17900	1	2025-08-16 18:46:54.702	2025-08-16 18:46:54.702	\N	06c753c6-82b4-4c20-ad22-9fd3cd4f7b45	0c664953-a9c1-4cfe-840c-210279e776b3	a6d829d3-3af7-4269-a02a-49e8aabd0798	89930d37-22b6-479b-b5c3-62a1592386f2	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	una introduccion a un curso de milagros
 29c1fca9-7abd-46b8-98bb-1155a4a503b9	Race Series - BMW M3 DTM	4897071920360	15900	0	2025-08-06 21:23:02.921	2025-09-02 17:08:41.626	38224cff-24fa-4456-a695-38971ac88d79	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	8146bc13-4622-4342-890d-1e631371f828	OTHER	t	race series - bmw m3 dtm
 4cfd1f17-8e6e-459c-ad67-3e4c408e08f3	Narraciones Extraordinarias	9788417477455	9900	5	2025-06-06 20:49:15.591	2026-01-17 18:11:15.996	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	cbb6a8a0-6a52-4f3e-80a5-af9dc8a8f763	789143ad-3d30-4ff0-916b-2c93997dd3da	https://images.cdn1.buscalibre.com/fit-in/360x360/a9/59/a9596159ca762038c180d622d07f4faf.jpg	\N	BOOK	t	narraciones extraordinarias
+0b598417-5e37-4412-a375-18bb436d3c73	La Biblia Dios Habla ahora	9781576971581	21900	9	2025-08-16 16:33:31.863	2026-02-05 16:42:11.86	\N	24ba5aa6-a364-4458-97cf-344ce39d2228	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	89930d37-22b6-479b-b5c3-62a1592386f2	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	la biblia dios habla ahora
 9be05a1e-14c3-47a8-970d-ad61cf39b864	El Poder del Ahora	9789563255256	12900	1	2025-07-05 18:52:26.542	2026-01-30 18:41:00.258	\N	43fe302c-9892-49fb-966c-53f7bc226464	0c664953-a9c1-4cfe-840c-210279e776b3	f322429a-8081-4d4b-8f5a-339cf74ab8ff	e70be43e-9e30-4ee7-af87-6b738ca2959f	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	el poder del ahora
 e0dc6bfc-3f29-4d2c-b922-b6b948076a1d	Rebelión en la granja	9789807716154	6900	2	2025-06-06 22:19:43.307	2026-02-03 15:17:26.608	\N	c4009d24-6970-47af-aa65-5cda5cb68521	0c664953-a9c1-4cfe-840c-210279e776b3	f0bcb10d-6b0f-428c-bebd-5d0e9aed6a54	4732541b-2de7-4d3f-80c7-223b5a5ec43e	https://images.cdn2.buscalibre.com/fit-in/360x360/d7/25/d7256bc85aad08637b2be50dc260185f.jpg	\N	BOOK	t	rebelion en la granja
 a5413c08-c30c-40b6-b4b2-b5ffb7859821	Santa Biblia	9788489592659	31900	1	2025-08-16 16:52:39.997	2025-09-16 14:00:59.598	\N	3673e9dc-14e9-4d53-8f51-417b60b81132	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	89930d37-22b6-479b-b5c3-62a1592386f2	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	santa biblia
@@ -7834,7 +7837,6 @@ c33963ca-8115-417d-869a-519c624e7416	Doodles - Mini Block para Colorear	97895662
 63eb1610-d54b-4536-8dcc-ab1c197de5b9	Historias Favoritas - Ricitos de Oro y los tres Osos (Tapa Dura)	9789566253518	2500	1	2025-09-05 16:01:37.302	2025-11-12 20:48:17.094	\N	660f01c2-b7eb-4a77-a4ab-7a325cb16294	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	9fcae415-f18a-4de2-a632-a2c3a6e5177b	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLLXGknvPTucdqakyFmt421xnwQoW8ZHBiNzGU	\N	BOOK	t	historias favoritas - ricitos de oro y los tres osos (tapa dura)
 a7c36afa-969a-49ac-a244-36d0a3b7ddfd	Clásicos Inolvidables - Grimm (Tapa Dura Acolchada)	9789566253891	14900	3	2025-09-05 16:51:34.81	2025-12-14 19:25:41.074	\N	660f01c2-b7eb-4a77-a4ab-7a325cb16294	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	9fcae415-f18a-4de2-a632-a2c3a6e5177b	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLWNJVjouJyiOpE9dLvHGRDt1anU3xekZoIwQS	\N	BOOK	t	clasicos inolvidables - grimm (tapa dura acolchada)
 2ceccd14-c924-4d80-8550-56ff19c51295	1616 Plataforma Baja con Cargador Frontal	4006874016167	12900	0	2025-09-05 22:03:41.132	2025-09-22 18:17:15.133	f0117622-7e5a-457a-976c-4e50a9224e6d	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLLeAindYPTucdqakyFmt421xnwQoW8ZHBiNzG	6875b038-d853-4740-9495-6f48086bfce7	OTHER	t	1616 plataforma baja con cargador frontal
-8f18e30b-108b-4666-bc09-c2029fbcdd99	Set de Rompecabezas Educativos Avanzados – Colección 4 en 1 (Step 5)	3100005230666	9900	0	2025-06-30 15:25:05.289	2026-02-02 20:30:03.082	fa5f6070-e214-4024-9c5a-1830419ffa96	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	6f7da749-4dc2-4e77-98f1-79b55d259b73	OTHER	t	set de rompecabezas educativos avanzados – coleccion 4 en 1 (step 5)
 8ff25ff2-e438-4fc3-a9b7-dc9ec2c8cfb0	Historias Favoritas - Caperucita Roja (Tapa Dura)	9789566253525	2500	1	2025-09-05 15:59:22.553	2025-11-03 20:01:18.159	\N	660f01c2-b7eb-4a77-a4ab-7a325cb16294	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	9fcae415-f18a-4de2-a632-a2c3a6e5177b	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLP0azZ3MA4t3yLXH2jVqpGFDICo91fYZK0ai7	\N	BOOK	t	historias favoritas - caperucita roja (tapa dura)
 539f6041-6b5d-4021-b0a8-d0f8e61e733c	Historias Favoritas - Blancanieves (Tapa Dura)	9789566253549	2500	1	2025-09-05 16:07:18.558	2025-11-12 20:48:17.095	\N	660f01c2-b7eb-4a77-a4ab-7a325cb16294	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	9fcae415-f18a-4de2-a632-a2c3a6e5177b	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLppjHp7OQfNCErwsTdk7P5qAUeFB4VXYKWiJg	\N	BOOK	t	historias favoritas - blancanieves (tapa dura)
 37cef90c-98c7-4da3-a84d-0ba1053f5831	Recorre el Mundo de los Dinosaurios (Tapa Dura)	9788466242608	13900	0	2025-09-05 16:34:21.416	2025-11-20 13:51:06.949	\N	660f01c2-b7eb-4a77-a4ab-7a325cb16294	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	5b2606c2-1b0f-49ed-a2b8-45771a7e6159	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLE7d7rcTvE73ibdW1UFHge6Dm8wrXzTkcRxJB	\N	BOOK	t	recorre el mundo de los dinosaurios (tapa dura)
@@ -8150,7 +8152,7 @@ cfe9f8cc-a62e-47c9-a72d-c910ffcf18ce	Arséne Lupin y la aguja hueca	978841821198
 01919a46-66d5-4e2f-952e-f4b13f4eb129	La divina comedia	9788410109018	6900	1	2025-10-17 13:38:40.457	2025-12-12 15:57:59.932	\N	6166f1a8-d82c-455f-bc40-a5c076adeeb6	0c664953-a9c1-4cfe-840c-210279e776b3	f9dc37c3-7d77-45ed-b21e-be2adda354ab	1656f60f-55e4-4819-8215-369a9c5c1ac8	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	la divina comedia
 f1e93667-5c34-4962-aa88-9a703bec0a19	Aurora	9788410109520	6900	1	2025-10-17 13:41:03.631	2026-01-19 16:43:21.501	\N	6166f1a8-d82c-455f-bc40-a5c076adeeb6	0c664953-a9c1-4cfe-840c-210279e776b3	8c01d6a6-3223-4587-86b4-8908e090d90a	984929df-2bde-4144-8d72-d19efb4f7df3	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	aurora
 640fef77-fff1-4bb7-a1e0-611a9c0aa60e	El Retrato de Dorian Gray ( clásicos ilustrados )	9788417928810	15900	0	2025-10-17 14:48:57.465	2026-01-19 21:32:32.42	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	7c1100f3-c9fc-4bf5-9e19-c764c3f5918d	f3156692-f51c-4c17-a029-adc0843ab978	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	el retrato de dorian gray ( clasicos ilustrados )
-0feaea8e-fae5-441f-ba96-04d74d7d5a05	Majorette city man bus	3467452077504	10900	23	2025-10-16 14:54:44.896	2026-01-24 17:31:16.251	f0117622-7e5a-457a-976c-4e50a9224e6d	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	4809debe-ff12-4b3b-8afe-0b4cd0a127bd	OTHER	t	majorette city man bus
+0feaea8e-fae5-441f-ba96-04d74d7d5a05	Majorette city man bus	3467452077504	10900	22	2025-10-16 14:54:44.896	2026-02-05 18:12:15.184	f0117622-7e5a-457a-976c-4e50a9224e6d	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	4809debe-ff12-4b3b-8afe-0b4cd0a127bd	OTHER	t	majorette city man bus
 5f89ceef-1713-4b23-a51a-5550021e8c51	auto carrera ( formula 1 ) control remoto	749752879471	19900	1	2025-10-17 14:57:36.196	2026-01-26 17:31:51.582	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	c0259a51-baf1-4701-98a0-7896f043ad13	OTHER	t	auto carrera ( formula 1 ) control remoto
 3006a89e-bdea-4f2c-81e2-e18b96de6dde	Diálogos	9788410109285	6900	1	2025-10-17 13:33:03.245	2026-02-03 19:38:29.425	\N	6166f1a8-d82c-455f-bc40-a5c076adeeb6	0c664953-a9c1-4cfe-840c-210279e776b3	4472fee7-3e12-4a78-8f83-3c735b41a8c1	984929df-2bde-4144-8d72-d19efb4f7df3	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	dialogos
 9328510c-db60-4099-aef2-b8a36b754923	Rebelión en la granja	9789807875004	6900	3	2025-10-17 13:45:49.821	2026-01-30 21:30:58.374	\N	aa25a973-ae71-4881-aec2-37ae1abc1280	0c664953-a9c1-4cfe-840c-210279e776b3	f0bcb10d-6b0f-428c-bebd-5d0e9aed6a54	2a373af6-465d-48df-b36e-e390d2ecf45c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	rebelion en la granja
@@ -8412,8 +8414,8 @@ bbfaf7b0-77aa-4348-94ee-8da2f7396c65	Rosa Yagán La kutaya le kipa	9789561605411
 392a3aba-45c6-41f7-ae49-5b18d55fad12	El pecador de Oxford	9789564087573	10900	0	2025-12-11 13:53:37.653	2025-12-11 21:11:22.363	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	cf0edaf5-244e-4a6c-8115-7ccb9f0acf49	f3156692-f51c-4c17-a029-adc0843ab978	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	el pecador de oxford
 00f5a574-6a29-46a8-9314-e27d934e5fb3	Mitos y Leyendas del cielo y las estrellas	9789562574723	16900	1	2025-12-12 17:44:36.994	2025-12-12 17:44:36.994	\N	9a716324-608d-49b6-9475-6de83e74ccea	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	cad953e4-ac32-41ad-bf89-b4bf08f65997	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	mitos y leyendas del cielo y las estrellas
 a034edf0-9d18-430c-a3c8-cb0ac531e9ec	Democracia y lucha armada MIR y MLN - Tupamaros	9789561605602	12900	0	2025-12-05 17:20:15.596	2026-01-19 20:34:19.657	\N	7397ef00-e63b-4dac-a6a9-fd2bdca5c6b9	0c664953-a9c1-4cfe-840c-210279e776b3	17b0ab74-604a-476d-a33b-f0210fdeaafb	7aeb9f24-ee05-464d-acbe-dfe16a177d3a	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	democracia y lucha armada mir y mln - tupamaros
-2e927cd0-2ce2-4af7-8a4e-aba086ccc71f	Funga, fungi, flora Breve muestra natural de Chile	9789561608702	19900	3	2025-12-05 17:32:45.269	2026-01-19 21:27:01.12	\N	7397ef00-e63b-4dac-a6a9-fd2bdca5c6b9	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	5b2606c2-1b0f-49ed-a2b8-45771a7e6159	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	funga, fungi, flora breve muestra natural de chile
 998d5113-3df7-4275-9946-300f995d1f1c	Dibuja kawai	9789562574464	16900	0	2025-12-12 17:42:50.049	2026-01-20 13:27:32.809	\N	9a716324-608d-49b6-9475-6de83e74ccea	0c664953-a9c1-4cfe-840c-210279e776b3	4b7abb6e-7844-41d9-8f74-3c8874bb9908	87b0a874-ef5e-4198-944f-b4b8368ce64f	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	dibuja kawai
+2e927cd0-2ce2-4af7-8a4e-aba086ccc71f	Funga, fungi, flora Breve muestra natural de Chile	9789561608702	19900	2	2025-12-05 17:32:45.269	2026-02-05 18:36:40.908	\N	7397ef00-e63b-4dac-a6a9-fd2bdca5c6b9	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	5b2606c2-1b0f-49ed-a2b8-45771a7e6159	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	funga, fungi, flora breve muestra natural de chile
 0c1658ab-1524-4dbb-b1b5-16a639e47ec0	Mitos y Leyendas de las profundidades del mar	9789562575829	16900	1	2025-12-12 17:45:47.278	2025-12-12 17:45:47.278	\N	9a716324-608d-49b6-9475-6de83e74ccea	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	cad953e4-ac32-41ad-bf89-b4bf08f65997	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	mitos y leyendas de las profundidades del mar
 e16bdedd-c5c4-4b04-81e5-0384a3803e5c	Atlas de aventuras espaciales	9789562572323	12900	1	2025-12-12 17:47:00.523	2025-12-12 17:47:00.523	\N	9a716324-608d-49b6-9475-6de83e74ccea	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	5b2606c2-1b0f-49ed-a2b8-45771a7e6159	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	atlas de aventuras espaciales
 a95cbf80-0394-44cb-8e2f-f999268068cd	El lenguaje de la naturaleza	9789562575478	20900	1	2025-12-12 17:51:25.391	2025-12-12 17:51:25.391	\N	9a716324-608d-49b6-9475-6de83e74ccea	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	5b2606c2-1b0f-49ed-a2b8-45771a7e6159	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	el lenguaje de la naturaleza
@@ -8712,9 +8714,9 @@ b5a934f2-1196-40c8-9047-42ba0a40b372	1993 Chevrolet 454 SS Pick-up	090159392392	
 9675312e-73ad-48aa-8daf-fbdf81fb7828	Porsche burago 911 / 963	4893993383801	15900	2	2025-12-20 12:43:26.449	2025-12-20 13:00:20.574	29584232-8f4b-4c26-832b-41b3b66e76ca	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	b30e7e47-7dee-4314-9630-da15fa34954f	OTHER	t	porsche burago 911 / 963
 e92c5eb1-8e87-4dec-89b4-e35279473833	Bombero esca telescópica burago mercedes	4893993320189	24900	2	2025-12-20 13:03:34.121	2025-12-20 13:03:34.121	f2d20204-3225-49f6-9ce1-aa1e85f4d963	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	b30e7e47-7dee-4314-9630-da15fa34954f	OTHER	t	bombero esca telescopica burago mercedes
 440b832c-786c-41cb-a406-e5b34ac114a4	Guinnes world records 2026	9788408307051	36900	2	2025-12-20 13:05:17.719	2025-12-20 13:05:17.719	\N	6269c79e-129b-4d2c-b20b-557874e67def	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	76d9bd3a-112d-4ee4-8b1a-1d3445e2ac06	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	guinnes world records 2026
+ecf521ba-83c3-4949-9482-3102902cc3bf	2017 Ford Raptor	090159073086	27900	0	2025-12-20 13:09:01.941	2026-02-05 16:54:59.838	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	001a487e-024c-49b5-8b5a-0aa9773e0d07	OTHER	t	2017 ford raptor
 6ddb1002-43a9-4e54-9fc1-d8941ceda108	Jaguar E-type Coupe	4893993120444	54900	0	2025-12-20 13:52:17.856	2026-01-14 16:37:47.379	b03e9b7b-2dd9-49a6-b3d9-1bacee8f43bb	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	b30e7e47-7dee-4314-9630-da15fa34954f	OTHER	t	jaguar e-type coupe
 e63d1d56-6a9e-4493-b553-dcab8432f766	El hobbit	9789566180487	14900	0	2025-12-18 21:38:02.162	2026-01-19 19:51:27.241	\N	7c33b296-5e4a-47ac-b1dd-b18363b5d382	0c664953-a9c1-4cfe-840c-210279e776b3	c94e5e30-e470-4ae4-830f-5733e1bd9ae4	c2655739-37ff-4178-b0f3-41eb843caf58	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	el hobbit
-ecf521ba-83c3-4949-9482-3102902cc3bf	2017 Ford Raptor	090159073086	27900	1	2025-12-20 13:09:01.941	2026-01-20 14:21:57.706	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	001a487e-024c-49b5-8b5a-0aa9773e0d07	OTHER	t	2017 ford raptor
 d7076fa5-00d1-4646-a9bc-957302be12b1	Soy suficiente	9789566293934	11900	0	2025-12-18 22:06:54.13	2026-01-22 15:08:28.246	\N	e4de0ec7-f34a-4f1c-af3c-43ae23552116	0c664953-a9c1-4cfe-840c-210279e776b3	0b544911-d239-41fe-b655-2b06114ef05d	e70be43e-9e30-4ee7-af87-6b738ca2959f	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	soy suficiente
 1b97bdc2-48a5-414d-bbbc-c2f7f1cc5a28	1967 Chevy camaro ss negro	661732733019	23900	1	2025-12-20 13:56:12.204	2026-01-23 15:08:30.086	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	a24827d5-93d9-4bfc-8d3b-b83cb2122db4	OTHER	t	1967 chevy camaro ss negro
 3e88384a-b584-4499-b836-00312b19324e	Toyota celica Gt-s negro 	090159325444	25900	1	2025-12-20 13:12:03.079	2026-01-23 15:08:00.417	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	001a487e-024c-49b5-8b5a-0aa9773e0d07	OTHER	t	toyota celica gt-s negro
@@ -8742,7 +8744,7 @@ a5636ee6-d29b-432e-b239-f5bda3613b70	Teniente Hernán Merino Centinela de la fro
 e86ec63b-c4b5-4256-a8a2-f42c0e28d89e	Heartstopper (tomo 5)	9786313001002	17900	1	2025-06-03 18:50:44.008	2026-01-08 18:18:21.2	\N	5bfbe5d1-ae9e-414c-a3af-65e7d5ba29c9	0c664953-a9c1-4cfe-840c-210279e776b3	ecafcada-7928-4b9a-92d5-c53fc127d0a3	f3156692-f51c-4c17-a029-adc0843ab978	https://images.cdn3.buscalibre.com/fit-in/360x360/7b/e1/7be145e32af5aa981b72fadf038bfb91.jpg	\N	BOOK	t	heartstopper (tomo 5)
 8e9eb1fb-af9d-4abf-a5e9-90c738c223de	Paula	9789588611808	13900	2	2025-06-23 18:37:41.838	2026-01-08 18:23:28.676	\N	43fe302c-9892-49fb-966c-53f7bc226464	0c664953-a9c1-4cfe-840c-210279e776b3	74355b7a-8da2-41cc-b15e-62322b10434d	4732541b-2de7-4d3f-80c7-223b5a5ec43e	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLOkNoHWInogt6Wv0jbVcXLaB3zmeGNECT5y98	\N	BOOK	t	paula
 aa9f1e59-562d-43a3-8d03-0edad34c5e09	No tengas miedo	9789566129981	25900	1	2025-06-12 17:38:53.107	2026-01-08 18:54:52.786	\N	774d1eb0-75d5-4c0e-b3bf-6189211709f3	0c664953-a9c1-4cfe-840c-210279e776b3	80ffed86-04da-4ac2-970a-d5931e255f6b	e70be43e-9e30-4ee7-af87-6b738ca2959f	https://images.cdn2.buscalibre.com/fit-in/360x360/36/e7/36e7f701f4ecae2b7b47a4ab9d4e57eb.jpg	\N	BOOK	t	no tengas miedo
-e9296475-dbc7-4fd7-9e3d-b7c67676f161	Papelucho	9789563495683	8900	0	2025-08-07 17:07:47.241	2026-01-27 21:21:42.91	\N	2d2b8347-99e2-4275-b956-f5be9501b3a8	0c664953-a9c1-4cfe-840c-210279e776b3	18244dc2-ef59-433b-9161-be0d4afaddaf	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLfSOgmKRk0r6RoJQlvnBZ4uShtCzAjpV1DFN8	\N	BOOK	t	papelucho
+e9296475-dbc7-4fd7-9e3d-b7c67676f161	Papelucho	9789563495683	8900	0	2025-08-07 17:07:47.241	2026-02-05 16:02:08.982	\N	2d2b8347-99e2-4275-b956-f5be9501b3a8	0c664953-a9c1-4cfe-840c-210279e776b3	18244dc2-ef59-433b-9161-be0d4afaddaf	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLfSOgmKRk0r6RoJQlvnBZ4uShtCzAjpV1DFN8	\N	BOOK	t	papelucho
 ccbf4e61-d37f-4384-b571-31abdaaf0471	La milla verde	9789563257007	14900	1	2025-06-23 21:14:37.323	2026-01-08 19:00:47.87	\N	43fe302c-9892-49fb-966c-53f7bc226464	0c664953-a9c1-4cfe-840c-210279e776b3	80ffed86-04da-4ac2-970a-d5931e255f6b	4732541b-2de7-4d3f-80c7-223b5a5ec43e	https://images.cdn2.buscalibre.com/fit-in/360x360/53/41/5341ee5a6e49cec0ac37a5e91fe040ce.jpg	\N	BOOK	t	la milla verde
 3828fe0b-7fbc-498a-89ff-f020766404d4	Divina Comedia	9788415089551	6900	3	2025-06-09 18:40:59.822	2026-01-08 19:38:43.438	\N	1cb8e9e2-d2cf-455f-a65f-f8dafecbb2ab	0c664953-a9c1-4cfe-840c-210279e776b3	f9dc37c3-7d77-45ed-b21e-be2adda354ab	4732541b-2de7-4d3f-80c7-223b5a5ec43e	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLNJ6EKzNCsBMjiSEXFgZ9mrx3fQ2D0qt4dvaG	\N	BOOK	t	divina comedia
 59ce082f-8437-4e62-afb6-829ce5c53e83	El libro de oro	9788410233058	19900	1	2025-10-10 21:11:20.665	2026-01-08 20:34:48.669	\N	657521e3-515d-4daf-80e6-9aa10ade0e90	0c664953-a9c1-4cfe-840c-210279e776b3	5ef15810-60ef-4116-b71f-aae1949f01c4	984929df-2bde-4144-8d72-d19efb4f7df3	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	el libro de oro
@@ -9001,7 +9003,6 @@ c81c85fd-e932-493e-9eed-77ca9ff173f6	La Insoportable Levedad del ser	97895699612
 d733d342-0078-4d9e-9755-e91449f9f6bf	Puma 260 CVXDRIVE	3539185885005	9900	0	2026-01-21 20:20:46.246	2026-02-02 14:54:18.36	f0117622-7e5a-457a-976c-4e50a9224e6d	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	12b98272-cbbb-4867-9c92-6a756145c50b	OTHER	t	puma 260 cvxdrive
 22dbc5e0-6617-4512-85ae-61172610594d	Actividades para Mentes Rápidas - Juegos para conseguir ser un genio 6+ años	9788499396415	6900	4	2025-07-10 17:18:17.066	2026-02-02 18:20:02.869	\N	efbc0eee-a6aa-4980-80b7-80a46b228e2e	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	2b56fabe-96ca-4e8e-b451-36e9c30abf28	https://images.cdn2.buscalibre.com/fit-in/360x360/98/cd/98cd93e15421779dbac3f1c27b2733a5.jpg	\N	BOOK	t	actividades para mentes rapidas - juegos para conseguir ser un genio 6+ años
 8830f187-29cc-40db-be96-3fbd8ccd1f94	Batmobile con Figura – DC Batman La película 2022	801310320426	15900	1	2025-07-04 20:25:21.074	2026-02-02 15:16:56.153	38224cff-24fa-4456-a695-38971ac88d79	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLFFRYFnv62QMld5mUYV4COz79tTvEeaGwXKcZ	b89307bd-a39a-4ede-b4f6-1ac95a1731e6	OTHER	t	batmobile con figura – dc batman la pelicula 2022
-1bbf5f29-87ff-4469-af2c-6f5d05e4e20b	Maquina del tiempo - Volver al futuro II	4891761224417	34900	2	2025-12-20 13:13:40.694	2026-02-02 15:29:37.43	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	caf7579c-f524-4ef5-b20f-85f5c8627de4	OTHER	t	maquina del tiempo - volver al futuro ii
 d4940a59-29ba-4861-a065-206b9498f213	1958 Chevy Impala	661732732678	23900	1	2026-02-02 15:52:44.316	2026-02-02 15:52:44.316	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	a24827d5-93d9-4bfc-8d3b-b83cb2122db4	OTHER	t	1958 chevy impala
 9d31eefd-da6a-4c79-974b-71a7aece1d4a	1934 Ford Coupe	661732732173	23900	1	2026-02-02 15:53:59.016	2026-02-02 15:53:59.016	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	a24827d5-93d9-4bfc-8d3b-b83cb2122db4	OTHER	t	1934 ford coupe
 22b13c7b-aa80-4001-96e6-73d5f23ffe79	Auto con pull-back jetour colo-colo	677144291788	4900	3	2026-02-02 15:56:59.973	2026-02-02 15:57:56.451	51ca610a-9abe-4f3a-817f-e20cb1ed8205	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	9d5f8cfd-f0bb-4b34-a870-19060d967a49	OTHER	t	auto con pull-back jetour colo-colo
@@ -9016,6 +9017,7 @@ e6ba5993-92fe-4a3a-9926-b04b98edac81	Avión de guerra TYPHOON MK.IB	958020836314
 a8d81901-d021-43ad-8f8d-0ed388bd81f9	Helicóptero de guerra AH-64D "Longbow"	9580208370323	24900	1	2026-02-02 16:21:48.718	2026-02-02 16:21:48.718	b5756fd6-6a67-408b-81e1-38a34739c983	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	464fd273-a747-4038-9f4b-d9091181be5f	OTHER	t	helicoptero de guerra ah-64d "longbow"
 47a8e0e6-db31-4c93-bd5a-a2f19111d733	Helicóptero de guerra AH-1 "Cobra" verde	9580208370972	24900	1	2026-02-02 16:22:40.026	2026-02-02 16:24:48.96	b5756fd6-6a67-408b-81e1-38a34739c983	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	464fd273-a747-4038-9f4b-d9091181be5f	OTHER	t	helicoptero de guerra ah-1 "cobra" verde
 fd7cf137-38b4-4837-ba41-cf2d84400e9c	Helicóptero de guerra AH-1 "Cobra" café	9580208370996	24900	1	2026-02-02 16:25:29.21	2026-02-02 16:25:29.21	b5756fd6-6a67-408b-81e1-38a34739c983	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	464fd273-a747-4038-9f4b-d9091181be5f	OTHER	t	helicoptero de guerra ah-1 "cobra" cafe
+1bbf5f29-87ff-4469-af2c-6f5d05e4e20b	Maquina del tiempo - Volver al futuro II	4891761224417	34900	1	2025-12-20 13:13:40.694	2026-02-05 14:08:30.848	273d92fc-b877-454a-911b-374c5f2fde64	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	caf7579c-f524-4ef5-b20f-85f5c8627de4	OTHER	t	maquina del tiempo - volver al futuro ii
 1ed2dd57-25cd-4527-83ad-4c8f9d4798fd	Harry Potter arte mágico libro para colorear	9786313033324	3900	10	2026-02-02 15:11:13.089	2026-02-02 16:33:31.572	\N	084edde9-f5a3-407f-8667-628070469ba8	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	69a94d66-c6f9-4a41-a3f6-060b982d7e28	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	harry potter arte magico libro para colorear
 a8481181-fc75-4a02-9e7d-227d2afa102d	Swamp raider / MBX RAFT BOAT	027084213690	9900	1	2026-02-02 17:14:22.448	2026-02-02 17:14:22.448	51ca610a-9abe-4f3a-817f-e20cb1ed8205	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	8fa6985c-7f9b-44e2-bb6c-db3e9d5cc7d7	OTHER	t	swamp raider / mbx raft boat
 d62c9c01-31ac-421d-8c05-bc2dfc31e285	2 modelos de metal FIre Street	4893993300020	14900	1	2026-02-02 17:22:43.235	2026-02-02 17:22:43.235	29584232-8f4b-4c26-832b-41b3b66e76ca	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	b30e7e47-7dee-4314-9630-da15fa34954f	OTHER	t	2 modelos de metal fire street
@@ -9056,6 +9058,10 @@ a82e8e86-6456-4ff7-951e-b853a920cb14	Ducati Panigale 1299	4006874013852	7900	2	2
 1d139d5a-7101-43c5-affa-d7d51d063120	Fire Engine with Turntable Ladder, Metal/Plastic, Red, Extendable Ladder	4006874010158	6900	1	2026-02-03 13:59:22.537	2026-02-03 13:59:22.537	f0117622-7e5a-457a-976c-4e50a9224e6d	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	6875b038-d853-4740-9495-6f48086bfce7	OTHER	t	fire engine with turntable ladder, metal/plastic, red, extendable ladder
 3a85e108-2c29-4702-85de-d3556d232333	Dutch Fire truck	4006874310142	6900	1	2026-02-03 14:00:56.238	2026-02-03 14:00:56.238	f0117622-7e5a-457a-976c-4e50a9224e6d	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	6875b038-d853-4740-9495-6f48086bfce7	OTHER	t	dutch fire truck
 cc337fa4-f10f-46a5-a9b6-0dfa42b35be0	Porsche 918 Spyder	4006874014750	6900	4	2026-02-03 14:02:17.909	2026-02-03 14:02:17.909	f0117622-7e5a-457a-976c-4e50a9224e6d	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	6875b038-d853-4740-9495-6f48086bfce7	OTHER	t	porsche 918 spyder
+41d751c4-09ca-4763-a62c-3d1ed9ff7df0	El traje nuevo del emperador	9789563163605	3500	0	2025-06-19 19:47:52.26	2026-02-05 15:48:58.31	\N	4470b6d0-34c0-4acf-ad5c-14f7ad829324	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	el traje nuevo del emperador
+79be96ac-76aa-4e5b-af8b-b447912abd71	Hércules	9789563164473	3500	0	2025-06-19 19:56:24.999	2026-02-05 15:48:58.311	\N	4470b6d0-34c0-4acf-ad5c-14f7ad829324	0c664953-a9c1-4cfe-840c-210279e776b3	599aca45-e73b-4c22-8d0c-77b18794f9b4	daf0ecaa-9a3c-4061-82ce-0657ad03754c	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	\N	BOOK	t	hercules
+60be7e4d-648d-466c-b1cd-ac70f53b4818	Cubic Estación de bomberos 254 pcs (compatible con otras marcas)	297170518282	19900	0	2025-06-11 20:24:26.341	2026-02-05 17:18:57.909	b67aebf5-2f78-434a-afd3-b3fe46b99c8d	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	91163c8b-22be-4e51-b2f8-48802f264eb5	OTHER	t	cubic estacion de bomberos 254 pcs (compatible con otras marcas)
+8f18e30b-108b-4666-bc09-c2029fbcdd99	Set de Rompecabezas Educativos Avanzados – Colección 4 en 1 (Step 5)	3100005230666	9900	0	2025-06-30 15:25:05.289	2026-02-05 18:34:22.178	fa5f6070-e214-4024-9c5a-1830419ffa96	\N	0c664953-a9c1-4cfe-840c-210279e776b3	\N	\N	https://5ze4837qih.ufs.sh/f/Ph60iLA4t3yLqmBG7IMmJhYvp48B3LW6GU2AiCIHg1FOeXQt	6f7da749-4dc2-4e77-98f1-79b55d259b73	OTHER	t	set de rompecabezas educativos avanzados – coleccion 4 en 1 (step 5)
 \.
 
 
@@ -10962,6 +10968,19 @@ e5acc8f9-ea1d-40fa-977d-52afa4d5bf63	6900	2026-02-04 18:52:05.375	0c664953-a9c1-
 5073f135-4e26-491c-9b4d-960a6232e806	3500	2026-02-04 20:58:52.694	0c664953-a9c1-4cfe-840c-210279e776b3	CASH	1623
 8e316852-27f9-4d9f-8e77-de30cfc99dae	6900	2026-02-04 21:53:49.656	0c664953-a9c1-4cfe-840c-210279e776b3	CASH	1624
 0a7af178-fd4d-4964-9391-34c5336d55ea	19900	2026-02-05 13:22:56.415	0c664953-a9c1-4cfe-840c-210279e776b3	CARD	1625
+3118d36b-55a0-4793-b22c-51bbf7382c00	14900	2026-02-05 14:07:16.463	0c664953-a9c1-4cfe-840c-210279e776b3	CARD	1626
+cda72652-67a0-4134-8fa0-73018a3f0361	34900	2026-02-05 14:08:30.235	0c664953-a9c1-4cfe-840c-210279e776b3	CARD	1627
+63311f2f-62cd-448d-a925-11a7e6db28db	7000	2026-02-05 15:48:57.39	0c664953-a9c1-4cfe-840c-210279e776b3	CASH	1628
+6f3aad35-d2f5-4a5c-92a2-ca5491105cfd	19900	2026-02-05 15:56:10.33	0c664953-a9c1-4cfe-840c-210279e776b3	CASH	1629
+3afd4ede-6330-481e-864b-ad5f3335db0d	8900	2026-02-05 16:02:08.232	0c664953-a9c1-4cfe-840c-210279e776b3	CARD	1630
+11daae7a-3943-48e4-b294-48b65c608eff	31900	2026-02-05 16:08:28.047	0c664953-a9c1-4cfe-840c-210279e776b3	CARD	1631
+83f2bc43-5dbc-4b31-910e-cc560d28055c	21900	2026-02-05 16:42:11.105	0c664953-a9c1-4cfe-840c-210279e776b3	CARD	1632
+cd51d6f0-59dd-46bf-9fa1-7583257e5ae1	27900	2026-02-05 16:54:59.071	0c664953-a9c1-4cfe-840c-210279e776b3	CARD	1633
+755488e4-ebc4-4efb-a924-8851239691d4	9900	2026-02-05 16:55:42.842	0c664953-a9c1-4cfe-840c-210279e776b3	CARD	1634
+df07a8ff-8e20-4aa3-adca-0e75516ab2a4	19900	2026-02-05 17:18:57.157	0c664953-a9c1-4cfe-840c-210279e776b3	CARD	1635
+84fcc8a5-eccb-4aed-af55-1dc5ae5f1300	10900	2026-02-05 18:12:14.409	0c664953-a9c1-4cfe-840c-210279e776b3	CARD	1636
+9c3d87af-513a-453c-9f0d-05ad3d79cc16	9900	2026-02-05 18:34:21.328	0c664953-a9c1-4cfe-840c-210279e776b3	CARD	1637
+e3566717-e4f1-471c-9d08-4f0cc517d58d	19900	2026-02-05 18:36:40.086	0c664953-a9c1-4cfe-840c-210279e776b3	CASH	1638
 \.
 
 
@@ -13103,6 +13122,20 @@ bd4e0165-a365-4d99-a53a-bc380f6e030e	e5acc8f9-ea1d-40fa-977d-52afa4d5bf63	fa483d
 3a217478-fd0b-49b5-a63e-e822635f2601	5073f135-4e26-491c-9b4d-960a6232e806	d500b06a-4170-465f-88e3-f97cd5bd369b	1	3500
 8e26d23d-5346-4b82-8082-3fe537ccfdf6	8e316852-27f9-4d9f-8e77-de30cfc99dae	b5cedbd8-c25b-448f-82cf-46fe2732c5b4	1	6900
 bcc043c5-3466-4c25-869d-f23a11db205e	0a7af178-fd4d-4964-9391-34c5336d55ea	b153d1f2-dc49-40e7-b922-81179ac1c35c	1	19900
+21137a1a-48c3-4279-98d8-595efa0b2ae1	3118d36b-55a0-4793-b22c-51bbf7382c00	5b2bf81e-5317-42df-ad1b-6f01b990052b	1	14900
+4ae3ea94-de04-4c71-bd1a-d491189d57df	cda72652-67a0-4134-8fa0-73018a3f0361	1bbf5f29-87ff-4469-af2c-6f5d05e4e20b	1	34900
+813f1845-e414-4963-ae81-b3a9233c34ca	63311f2f-62cd-448d-a925-11a7e6db28db	79be96ac-76aa-4e5b-af8b-b447912abd71	1	3500
+63b1c2ae-5a14-4b7a-9950-ecd3fed9c7e8	63311f2f-62cd-448d-a925-11a7e6db28db	41d751c4-09ca-4763-a62c-3d1ed9ff7df0	1	3500
+3d2e9823-b13f-4fa8-bd45-869d80fc9bfd	6f3aad35-d2f5-4a5c-92a2-ca5491105cfd	2dd16ebb-4dcb-4586-9d61-a47dda7fc10c	1	19900
+cc14c7d9-e83d-4443-948a-0b76ec5d944e	3afd4ede-6330-481e-864b-ad5f3335db0d	e9296475-dbc7-4fd7-9e3d-b7c67676f161	1	8900
+5efc3c88-5d3b-46cb-bf46-b2e307aefa03	11daae7a-3943-48e4-b294-48b65c608eff	ac9b99d0-d3ae-41e3-ab09-f2d9aa79b41a	1	31900
+f1a9c25b-7f10-43ed-9d94-a04d880a80f5	83f2bc43-5dbc-4b31-910e-cc560d28055c	0b598417-5e37-4412-a375-18bb436d3c73	1	21900
+a1bb7ba0-21d9-49ba-bb5e-d24ac495289d	cd51d6f0-59dd-46bf-9fa1-7583257e5ae1	ecf521ba-83c3-4949-9482-3102902cc3bf	1	27900
+1c8b5918-4336-4c0a-9d36-f75c1e459bac	755488e4-ebc4-4efb-a924-8851239691d4	56e02a2d-b804-43da-97bc-af498c14925c	1	9900
+06d15a64-5a71-4881-9a31-542cd6fe5f4f	df07a8ff-8e20-4aa3-adca-0e75516ab2a4	60be7e4d-648d-466c-b1cd-ac70f53b4818	1	19900
+ded791db-821f-43be-91b8-38cfa0193d25	84fcc8a5-eccb-4aed-af55-1dc5ae5f1300	0feaea8e-fae5-441f-ba96-04d74d7d5a05	1	10900
+828f357f-0d76-4324-bafb-b8d0e1183b88	9c3d87af-513a-453c-9f0d-05ad3d79cc16	8f18e30b-108b-4666-bc09-c2029fbcdd99	1	9900
+fd34e12f-f55a-4712-9a7e-a569fd78234c	e3566717-e4f1-471c-9d08-4f0cc517d58d	2e927cd0-2ce2-4af7-8a4e-aba086ccc71f	1	19900
 \.
 
 
@@ -13192,8 +13225,8 @@ d37ed591-0d1f-4381-bbfd-2b660ed8ce8d	Libro con sonido	2025-09-01 21:43:06.651
 --
 
 COPY public."User" (id, "firstName", "lastName", email, password, role, "createdAt", "isActive") FROM stdin;
-0c664953-a9c1-4cfe-840c-210279e776b3	Emilio	Venegas	admin@admin.com	$scrypt$n=16384,r=8,p=1$0BJUjca9ubu8tY4q9XtA7Q$ixdelscmUkX56ToM5dlJg+xGjcd/t3B5pdNLcLJSlvKfEGAC6eUfMv9bMPdwc8JCnncZJAyLgb4oiM5SImDG5w	OWNER	2025-03-22 09:22:58.222	t
-540db095-5382-4f85-953d-16cb5435c78b	Héctor	Lagos	helagos25@gmail.com	$scrypt$n=16384,r=8,p=1$0BJUjca9ubu8tY4q9XtA7Q$ixdelscmUkX56ToM5dlJg+xGjcd/t3B5pdNLcLJSlvKfEGAC6eUfMv9bMPdwc8JCnncZJAyLgb4oiM5SImDG5w	EMPLOYEE	2025-08-12 12:26:19.911	t
+0c664953-a9c1-4cfe-840c-210279e776b3	Emilio	Venegas	admin@admin.com	$2b$10$ICL1ji4CLwv2dJgHyOohxeUKGSn6FQpqgQuIno4ssWrEkmOUnfPbO	OWNER	2025-03-22 09:22:58.222	t
+540db095-5382-4f85-953d-16cb5435c78b	Héctor	Lagos	helagos25@gmail.com	$2b$10$ICL1ji4CLwv2dJgHyOohxeUKGSn6FQpqgQuIno4ssWrEkmOUnfPbO	EMPLOYEE	2025-08-12 12:26:19.911	t
 \.
 
 
@@ -13447,7 +13480,7 @@ SELECT pg_catalog.setval('auth.refresh_tokens_id_seq', 1, false);
 -- Name: Sale_receiptNumber_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public."Sale_receiptNumber_seq"', 1625, true);
+SELECT pg_catalog.setval('public."Sale_receiptNumber_seq"', 1638, true);
 
 
 --
@@ -15830,7 +15863,7 @@ GRANT ALL ON FUNCTION vault.update_secret(secret_id uuid, new_secret text, new_n
 -- Name: TABLE audit_log_entries; Type: ACL; Schema: auth; Owner: supabase_auth_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.audit_log_entries TO dashboard_user;
+GRANT ALL ON TABLE auth.audit_log_entries TO dashboard_user;
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.audit_log_entries TO postgres;
 GRANT SELECT ON TABLE auth.audit_log_entries TO postgres WITH GRANT OPTION;
 
@@ -15841,7 +15874,7 @@ GRANT SELECT ON TABLE auth.audit_log_entries TO postgres WITH GRANT OPTION;
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.flow_state TO postgres;
 GRANT SELECT ON TABLE auth.flow_state TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.flow_state TO dashboard_user;
+GRANT ALL ON TABLE auth.flow_state TO dashboard_user;
 
 
 --
@@ -15850,14 +15883,14 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.flow
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.identities TO postgres;
 GRANT SELECT ON TABLE auth.identities TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.identities TO dashboard_user;
+GRANT ALL ON TABLE auth.identities TO dashboard_user;
 
 
 --
 -- Name: TABLE instances; Type: ACL; Schema: auth; Owner: supabase_auth_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.instances TO dashboard_user;
+GRANT ALL ON TABLE auth.instances TO dashboard_user;
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.instances TO postgres;
 GRANT SELECT ON TABLE auth.instances TO postgres WITH GRANT OPTION;
 
@@ -15868,7 +15901,7 @@ GRANT SELECT ON TABLE auth.instances TO postgres WITH GRANT OPTION;
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.mfa_amr_claims TO postgres;
 GRANT SELECT ON TABLE auth.mfa_amr_claims TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.mfa_amr_claims TO dashboard_user;
+GRANT ALL ON TABLE auth.mfa_amr_claims TO dashboard_user;
 
 
 --
@@ -15877,7 +15910,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.mfa_
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.mfa_challenges TO postgres;
 GRANT SELECT ON TABLE auth.mfa_challenges TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.mfa_challenges TO dashboard_user;
+GRANT ALL ON TABLE auth.mfa_challenges TO dashboard_user;
 
 
 --
@@ -15886,39 +15919,39 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.mfa_
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.mfa_factors TO postgres;
 GRANT SELECT ON TABLE auth.mfa_factors TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.mfa_factors TO dashboard_user;
+GRANT ALL ON TABLE auth.mfa_factors TO dashboard_user;
 
 
 --
 -- Name: TABLE oauth_authorizations; Type: ACL; Schema: auth; Owner: supabase_auth_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.oauth_authorizations TO postgres;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.oauth_authorizations TO dashboard_user;
+GRANT ALL ON TABLE auth.oauth_authorizations TO postgres;
+GRANT ALL ON TABLE auth.oauth_authorizations TO dashboard_user;
 
 
 --
 -- Name: TABLE oauth_client_states; Type: ACL; Schema: auth; Owner: supabase_auth_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.oauth_client_states TO postgres;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.oauth_client_states TO dashboard_user;
+GRANT ALL ON TABLE auth.oauth_client_states TO postgres;
+GRANT ALL ON TABLE auth.oauth_client_states TO dashboard_user;
 
 
 --
 -- Name: TABLE oauth_clients; Type: ACL; Schema: auth; Owner: supabase_auth_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.oauth_clients TO postgres;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.oauth_clients TO dashboard_user;
+GRANT ALL ON TABLE auth.oauth_clients TO postgres;
+GRANT ALL ON TABLE auth.oauth_clients TO dashboard_user;
 
 
 --
 -- Name: TABLE oauth_consents; Type: ACL; Schema: auth; Owner: supabase_auth_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.oauth_consents TO postgres;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.oauth_consents TO dashboard_user;
+GRANT ALL ON TABLE auth.oauth_consents TO postgres;
+GRANT ALL ON TABLE auth.oauth_consents TO dashboard_user;
 
 
 --
@@ -15927,14 +15960,14 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.oaut
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.one_time_tokens TO postgres;
 GRANT SELECT ON TABLE auth.one_time_tokens TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.one_time_tokens TO dashboard_user;
+GRANT ALL ON TABLE auth.one_time_tokens TO dashboard_user;
 
 
 --
 -- Name: TABLE refresh_tokens; Type: ACL; Schema: auth; Owner: supabase_auth_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.refresh_tokens TO dashboard_user;
+GRANT ALL ON TABLE auth.refresh_tokens TO dashboard_user;
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.refresh_tokens TO postgres;
 GRANT SELECT ON TABLE auth.refresh_tokens TO postgres WITH GRANT OPTION;
 
@@ -15953,7 +15986,7 @@ GRANT ALL ON SEQUENCE auth.refresh_tokens_id_seq TO postgres;
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.saml_providers TO postgres;
 GRANT SELECT ON TABLE auth.saml_providers TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.saml_providers TO dashboard_user;
+GRANT ALL ON TABLE auth.saml_providers TO dashboard_user;
 
 
 --
@@ -15962,7 +15995,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.saml
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.saml_relay_states TO postgres;
 GRANT SELECT ON TABLE auth.saml_relay_states TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.saml_relay_states TO dashboard_user;
+GRANT ALL ON TABLE auth.saml_relay_states TO dashboard_user;
 
 
 --
@@ -15971,7 +16004,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.saml
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.sessions TO postgres;
 GRANT SELECT ON TABLE auth.sessions TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.sessions TO dashboard_user;
+GRANT ALL ON TABLE auth.sessions TO dashboard_user;
 
 
 --
@@ -15980,7 +16013,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.sess
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.sso_domains TO postgres;
 GRANT SELECT ON TABLE auth.sso_domains TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.sso_domains TO dashboard_user;
+GRANT ALL ON TABLE auth.sso_domains TO dashboard_user;
 
 
 --
@@ -15989,14 +16022,14 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.sso_
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.sso_providers TO postgres;
 GRANT SELECT ON TABLE auth.sso_providers TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.sso_providers TO dashboard_user;
+GRANT ALL ON TABLE auth.sso_providers TO dashboard_user;
 
 
 --
 -- Name: TABLE users; Type: ACL; Schema: auth; Owner: supabase_auth_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.users TO dashboard_user;
+GRANT ALL ON TABLE auth.users TO dashboard_user;
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE auth.users TO postgres;
 GRANT SELECT ON TABLE auth.users TO postgres WITH GRANT OPTION;
 
@@ -16005,45 +16038,45 @@ GRANT SELECT ON TABLE auth.users TO postgres WITH GRANT OPTION;
 -- Name: TABLE pg_stat_statements; Type: ACL; Schema: extensions; Owner: supabase_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE extensions.pg_stat_statements TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE extensions.pg_stat_statements TO dashboard_user;
+GRANT ALL ON TABLE extensions.pg_stat_statements TO postgres WITH GRANT OPTION;
+GRANT ALL ON TABLE extensions.pg_stat_statements TO dashboard_user;
 
 
 --
 -- Name: TABLE pg_stat_statements_info; Type: ACL; Schema: extensions; Owner: supabase_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE extensions.pg_stat_statements_info TO postgres WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE extensions.pg_stat_statements_info TO dashboard_user;
+GRANT ALL ON TABLE extensions.pg_stat_statements_info TO postgres WITH GRANT OPTION;
+GRANT ALL ON TABLE extensions.pg_stat_statements_info TO dashboard_user;
 
 
 --
 -- Name: TABLE decrypted_key; Type: ACL; Schema: pgsodium; Owner: supabase_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE pgsodium.decrypted_key TO pgsodium_keyholder;
+GRANT ALL ON TABLE pgsodium.decrypted_key TO pgsodium_keyholder;
 
 
 --
 -- Name: TABLE masking_rule; Type: ACL; Schema: pgsodium; Owner: supabase_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE pgsodium.masking_rule TO pgsodium_keyholder;
+GRANT ALL ON TABLE pgsodium.masking_rule TO pgsodium_keyholder;
 
 
 --
 -- Name: TABLE mask_columns; Type: ACL; Schema: pgsodium; Owner: supabase_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE pgsodium.mask_columns TO pgsodium_keyholder;
+GRANT ALL ON TABLE pgsodium.mask_columns TO pgsodium_keyholder;
 
 
 --
 -- Name: TABLE messages; Type: ACL; Schema: realtime; Owner: supabase_realtime_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE realtime.messages TO postgres;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE realtime.messages TO dashboard_user;
+GRANT ALL ON TABLE realtime.messages TO postgres;
+GRANT ALL ON TABLE realtime.messages TO dashboard_user;
 GRANT SELECT,INSERT,UPDATE ON TABLE realtime.messages TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE realtime.messages TO authenticated;
 GRANT SELECT,INSERT,UPDATE ON TABLE realtime.messages TO service_role;
@@ -16053,24 +16086,24 @@ GRANT SELECT,INSERT,UPDATE ON TABLE realtime.messages TO service_role;
 -- Name: TABLE schema_migrations; Type: ACL; Schema: realtime; Owner: supabase_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE realtime.schema_migrations TO postgres;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE realtime.schema_migrations TO dashboard_user;
+GRANT ALL ON TABLE realtime.schema_migrations TO postgres;
+GRANT ALL ON TABLE realtime.schema_migrations TO dashboard_user;
 GRANT SELECT ON TABLE realtime.schema_migrations TO anon;
 GRANT SELECT ON TABLE realtime.schema_migrations TO authenticated;
 GRANT SELECT ON TABLE realtime.schema_migrations TO service_role;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE realtime.schema_migrations TO supabase_realtime_admin;
+GRANT ALL ON TABLE realtime.schema_migrations TO supabase_realtime_admin;
 
 
 --
 -- Name: TABLE subscription; Type: ACL; Schema: realtime; Owner: supabase_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE realtime.subscription TO postgres;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE realtime.subscription TO dashboard_user;
+GRANT ALL ON TABLE realtime.subscription TO postgres;
+GRANT ALL ON TABLE realtime.subscription TO dashboard_user;
 GRANT SELECT ON TABLE realtime.subscription TO anon;
 GRANT SELECT ON TABLE realtime.subscription TO authenticated;
 GRANT SELECT ON TABLE realtime.subscription TO service_role;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE realtime.subscription TO supabase_realtime_admin;
+GRANT ALL ON TABLE realtime.subscription TO supabase_realtime_admin;
 
 
 --
@@ -16089,22 +16122,22 @@ GRANT ALL ON SEQUENCE realtime.subscription_id_seq TO supabase_realtime_admin;
 -- Name: TABLE buckets; Type: ACL; Schema: storage; Owner: supabase_storage_admin
 --
 
-REVOKE SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.buckets FROM supabase_storage_admin;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.buckets TO supabase_storage_admin WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.buckets TO anon;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.buckets TO authenticated;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.buckets TO service_role;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.buckets TO postgres WITH GRANT OPTION;
+REVOKE ALL ON TABLE storage.buckets FROM supabase_storage_admin;
+GRANT ALL ON TABLE storage.buckets TO supabase_storage_admin WITH GRANT OPTION;
+GRANT ALL ON TABLE storage.buckets TO anon;
+GRANT ALL ON TABLE storage.buckets TO authenticated;
+GRANT ALL ON TABLE storage.buckets TO service_role;
+GRANT ALL ON TABLE storage.buckets TO postgres WITH GRANT OPTION;
 
 
 --
 -- Name: TABLE buckets_analytics; Type: ACL; Schema: storage; Owner: supabase_storage_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.buckets_analytics TO service_role;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.buckets_analytics TO authenticated;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.buckets_analytics TO anon;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.buckets_analytics TO postgres;
+GRANT ALL ON TABLE storage.buckets_analytics TO service_role;
+GRANT ALL ON TABLE storage.buckets_analytics TO authenticated;
+GRANT ALL ON TABLE storage.buckets_analytics TO anon;
+GRANT ALL ON TABLE storage.buckets_analytics TO postgres;
 
 
 --
@@ -16114,49 +16147,49 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.b
 GRANT SELECT ON TABLE storage.buckets_vectors TO service_role;
 GRANT SELECT ON TABLE storage.buckets_vectors TO authenticated;
 GRANT SELECT ON TABLE storage.buckets_vectors TO anon;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.buckets_vectors TO postgres;
+GRANT ALL ON TABLE storage.buckets_vectors TO postgres;
 
 
 --
 -- Name: TABLE objects; Type: ACL; Schema: storage; Owner: supabase_storage_admin
 --
 
-REVOKE SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.objects FROM supabase_storage_admin;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.objects TO supabase_storage_admin WITH GRANT OPTION;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.objects TO anon;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.objects TO authenticated;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.objects TO service_role;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.objects TO postgres WITH GRANT OPTION;
+REVOKE ALL ON TABLE storage.objects FROM supabase_storage_admin;
+GRANT ALL ON TABLE storage.objects TO supabase_storage_admin WITH GRANT OPTION;
+GRANT ALL ON TABLE storage.objects TO anon;
+GRANT ALL ON TABLE storage.objects TO authenticated;
+GRANT ALL ON TABLE storage.objects TO service_role;
+GRANT ALL ON TABLE storage.objects TO postgres WITH GRANT OPTION;
 
 
 --
 -- Name: TABLE prefixes; Type: ACL; Schema: storage; Owner: supabase_storage_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.prefixes TO service_role;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.prefixes TO authenticated;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.prefixes TO anon;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.prefixes TO postgres;
+GRANT ALL ON TABLE storage.prefixes TO service_role;
+GRANT ALL ON TABLE storage.prefixes TO authenticated;
+GRANT ALL ON TABLE storage.prefixes TO anon;
+GRANT ALL ON TABLE storage.prefixes TO postgres;
 
 
 --
 -- Name: TABLE s3_multipart_uploads; Type: ACL; Schema: storage; Owner: supabase_storage_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.s3_multipart_uploads TO service_role;
+GRANT ALL ON TABLE storage.s3_multipart_uploads TO service_role;
 GRANT SELECT ON TABLE storage.s3_multipart_uploads TO authenticated;
 GRANT SELECT ON TABLE storage.s3_multipart_uploads TO anon;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.s3_multipart_uploads TO postgres;
+GRANT ALL ON TABLE storage.s3_multipart_uploads TO postgres;
 
 
 --
 -- Name: TABLE s3_multipart_uploads_parts; Type: ACL; Schema: storage; Owner: supabase_storage_admin
 --
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.s3_multipart_uploads_parts TO service_role;
+GRANT ALL ON TABLE storage.s3_multipart_uploads_parts TO service_role;
 GRANT SELECT ON TABLE storage.s3_multipart_uploads_parts TO authenticated;
 GRANT SELECT ON TABLE storage.s3_multipart_uploads_parts TO anon;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.s3_multipart_uploads_parts TO postgres;
+GRANT ALL ON TABLE storage.s3_multipart_uploads_parts TO postgres;
 
 
 --
@@ -16166,7 +16199,7 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.s
 GRANT SELECT ON TABLE storage.vector_indexes TO service_role;
 GRANT SELECT ON TABLE storage.vector_indexes TO authenticated;
 GRANT SELECT ON TABLE storage.vector_indexes TO anon;
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE storage.vector_indexes TO postgres;
+GRANT ALL ON TABLE storage.vector_indexes TO postgres;
 
 
 --
@@ -16205,8 +16238,8 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT ALL O
 -- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: auth; Owner: supabase_auth_admin
 --
 
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO postgres;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO dashboard_user;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT ALL ON TABLES TO postgres;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT ALL ON TABLES TO dashboard_user;
 
 
 --
@@ -16227,7 +16260,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA extensions GRANT ALL 
 -- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: extensions; Owner: supabase_admin
 --
 
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA extensions GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO postgres WITH GRANT OPTION;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA extensions GRANT ALL ON TABLES TO postgres WITH GRANT OPTION;
 
 
 --
@@ -16254,10 +16287,10 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql GRANT ALL ON 
 -- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: graphql; Owner: supabase_admin
 --
 
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO postgres;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO anon;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO authenticated;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql GRANT ALL ON TABLES TO postgres;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql GRANT ALL ON TABLES TO anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql GRANT ALL ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql GRANT ALL ON TABLES TO service_role;
 
 
 --
@@ -16284,10 +16317,10 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql_public GRANT 
 -- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: graphql_public; Owner: supabase_admin
 --
 
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql_public GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO postgres;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql_public GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO anon;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql_public GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO authenticated;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql_public GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql_public GRANT ALL ON TABLES TO postgres;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql_public GRANT ALL ON TABLES TO anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql_public GRANT ALL ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql_public GRANT ALL ON TABLES TO service_role;
 
 
 --
@@ -16301,7 +16334,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA pgsodium GRANT ALL ON
 -- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: pgsodium; Owner: supabase_admin
 --
 
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA pgsodium GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO pgsodium_keyholder;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA pgsodium GRANT ALL ON TABLES TO pgsodium_keyholder;
 
 
 --
@@ -16322,7 +16355,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA pgsodium_masks GRANT 
 -- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: pgsodium_masks; Owner: supabase_admin
 --
 
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA pgsodium_masks GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO pgsodium_keyiduser;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA pgsodium_masks GRANT ALL ON TABLES TO pgsodium_keyiduser;
 
 
 --
@@ -16345,8 +16378,8 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA realtime GRANT ALL ON
 -- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: realtime; Owner: supabase_admin
 --
 
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA realtime GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO postgres;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA realtime GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO dashboard_user;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA realtime GRANT ALL ON TABLES TO postgres;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA realtime GRANT ALL ON TABLES TO dashboard_user;
 
 
 --
@@ -16373,10 +16406,10 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage GRANT ALL ON FUNCTI
 -- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: storage; Owner: postgres
 --
 
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO postgres;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO anon;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO authenticated;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage GRANT ALL ON TABLES TO postgres;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage GRANT ALL ON TABLES TO anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage GRANT ALL ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage GRANT ALL ON TABLES TO service_role;
 
 
 --
@@ -16446,6 +16479,4 @@ ALTER EVENT TRIGGER pgrst_drop_watch OWNER TO supabase_admin;
 --
 -- PostgreSQL database dump complete
 --
-
-\unrestrict NeCDUEqMAOaApJXr3qbJAjyUUPD5FvUrn5xzkNtohvKY5ArEJSUxBTq9U1iqzbM
 
