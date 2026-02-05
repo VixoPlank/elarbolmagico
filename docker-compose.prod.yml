@@ -48,4 +48,4 @@ networks:
     external: true
 
 volumes:
-  postgres_data_v2:
+  postgres_volume:
