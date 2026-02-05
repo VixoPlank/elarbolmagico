@@ -1,31 +1,25 @@
-# Base stage with standardizing node configuration
 FROM node:22-alpine AS base
-RUN npm install -g pnpm
+WORKDIR /app
 
-# All deps stage
+# deps
 FROM base AS deps
-WORKDIR /app
-ADD package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install --frozen-lockfile
 
-# Production only deps stage
-FROM base AS production-deps
-WORKDIR /app
-ADD package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
-
-# Build stage
+# build
 FROM base AS build
-WORKDIR /app
-COPY --from=deps /app/node_modules /app/node_modules
-ADD . .
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
 RUN node ace build
+RUN pnpm run build
 
-# Production stage
-FROM base
+# production
+FROM base AS production
 ENV NODE_ENV=production
 WORKDIR /app
-COPY --from=production-deps /app/node_modules /app/node_modules
-COPY --from=build /app/build /app
+COPY --from=build /app/build ./build
+COPY --from=build /app/public ./public
+COPY --from=build /app/node_modules ./node_modules
+
 EXPOSE 3333
-CMD ["node", "./bin/server.js"]
+CMD ["node", "build/server.js"]
