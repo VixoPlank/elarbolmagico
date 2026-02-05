@@ -29,7 +29,7 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     volumes:
-      - postgres_volume:/var/lib/postgresql/data
+      - postgres_data_v2:/var/lib/postgresql/data
       - ./scripts/db:/docker-entrypoint-initdb.d
     environment:
       POSTGRES_DB: ${DB_DATABASE}
@@ -48,4 +48,4 @@ networks:
     external: true
 
 volumes:
-  postgres_volume:
+  postgres_data_v2:
