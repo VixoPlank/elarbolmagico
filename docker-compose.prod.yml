@@ -10,7 +10,7 @@ services:
     ports:
       - '3333:3333'
     networks:
-      - dokploy
+      - dokploy-network
     healthcheck:
       test:
         [
@@ -40,7 +40,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - dokploy
+      - dokploy-network
 
   redis:
     image: redis:7-alpine
@@ -54,7 +54,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - dokploy
+      - dokploy-network
 
   minio:
     image: minio/minio:latest
@@ -66,10 +66,10 @@ services:
       - minio_volume:/data
     command: minio server /data --console-address ":9001" --address ":9000"
     networks:
-      - dokploy
+      - dokploy-network
 
 networks:
-  dokploy:
+  dokploy-network:
     external: true
 
 volumes:
