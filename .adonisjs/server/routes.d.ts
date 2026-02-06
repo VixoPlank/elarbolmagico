@@ -134,6 +134,8 @@ export type ScannedRoutes = {
   PUT: {
     'password.update': { paramsTuple?: []; params?: {} }
   }
+  OPTIONS: {
+  }
 }
 declare module '@adonisjs/core/types/http' {
   export interface RoutesList extends ScannedRoutes {}
